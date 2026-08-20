@@ -1,0 +1,41 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build-debug-r24",
+            "type": "shell",
+            "command": "dotnet",
+            // R24 (net48) must be built via the .csproj directly, not the .sln — see CLAUDE.md's
+            // "Build & run" section (solution-level restore evaluates TargetFramework before the
+            // per-configuration override that switches R24 to net48).
+            "args": ["build", "${workspaceFolder}/GMSRevitAddin/GMSRevitAddin.csproj", "-c", "Debug R24"],
+            "problemMatcher": "$msCompile",
+            "presentation": { "reveal": "silent", "panel": "shared" }
+        },
+        {
+            "label": "build-debug-r25",
+            "type": "shell",
+            "command": "dotnet",
+            "args": ["build", "${workspaceFolder}/GMS Revit Addin.sln", "-c", "Debug R25"],
+            "problemMatcher": "$msCompile",
+            "presentation": { "reveal": "silent", "panel": "shared" }
+        },
+        {
+            "label": "build-debug-r26",
+            "type": "shell",
+            "command": "dotnet",
+            "args": ["build", "${workspaceFolder}/GMS Revit Addin.sln", "-c", "Debug R26"],
+            "problemMatcher": "$msCompile",
+            "presentation": { "reveal": "silent", "panel": "shared" }
+        },
+        {
+            "label": "build-debug-r27",
+            "type": "shell",
+            "command": "dotnet",
+            // R27 (net10.0-windows) has the same .csproj-direct requirement as R24 — see above.
+            "args": ["build", "${workspaceFolder}/GMSRevitAddin/GMSRevitAddin.csproj", "-c", "Debug R27"],
+            "problemMatcher": "$msCompile",
+            "presentation": { "reveal": "silent", "panel": "shared" }
+        }
+    ]
+}

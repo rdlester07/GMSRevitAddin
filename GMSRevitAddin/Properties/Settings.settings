@@ -1,0 +1,57 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="GMSRevitAddin.Properties" GeneratedClassName="Settings">
+  <Profiles />
+  <Settings>
+    <Setting Name="AutoWarningSuppress" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="TagToolbarLocation" Type="System.Drawing.Point" Scope="User">
+      <Value Profile="(Default)">20, 20</Value>
+    </Setting>
+    <Setting Name="PartsManagerLocation" Type="System.String" Scope="User">
+      <Value Profile="(Default)">Not assigned</Value>
+    </Setting>
+    <Setting Name="OpenOrig" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="OpenNew" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="UnitLines" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="DimNotFormLocation" Type="System.Drawing.Point" Scope="User">
+      <Value Profile="(Default)">-100, -100</Value>
+    </Setting>
+    <Setting Name="BBFormSize" Type="System.Drawing.Size" Scope="User">
+      <Value Profile="(Default)">-100, -100</Value>
+    </Setting>
+    <Setting Name="BBFormLocation" Type="System.Drawing.Point" Scope="User">
+      <Value Profile="(Default)">-100, -100</Value>
+    </Setting>
+    <Setting Name="BBSmallFormLocation" Type="System.Drawing.Point" Scope="User">
+      <Value Profile="(Default)">-100, -100</Value>
+    </Setting>
+    <Setting Name="UnitRelsaseFormLocation" Type="System.Drawing.Point" Scope="User">
+      <Value Profile="(Default)">-100, -100</Value>
+    </Setting>
+    <Setting Name="UnitReleaseFromSize" Type="System.Drawing.Size" Scope="User">
+      <Value Profile="(Default)">-100, -100</Value>
+    </Setting>
+    <Setting Name="TagVisibility" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="ViewName" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="CombinePDF" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="AutoZoom" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="CWFormLocation" Type="System.Drawing.Point" Scope="User">
+      <Value Profile="(Default)">-100, -100</Value>
+    </Setting>
+  </Settings>
+</SettingsFile>

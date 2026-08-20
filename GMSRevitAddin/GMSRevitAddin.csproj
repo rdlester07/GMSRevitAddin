@@ -1,0 +1,296 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Multi-version Revit build. The active $(Configuration) carries a Revit-version suffix
+       (e.g. "Release R26"); that suffix drives $(RevitVersion), which in turn selects the
+       Revit API package version, the REVIT<ver> compile constant, the generated .addin
+       manifest, and the deploy paths. To add a future version, add it to <Configurations>
+       and add a matching $(Configuration.Contains('R##')) block below — see CLAUDE.md. -->
+  <PropertyGroup>
+    <Configurations>Debug R24;Release R24;Debug R25;Release R25;Debug R26;Release R26;Debug R27;Release R27</Configurations>
+    <!-- A bare `dotnet build` and the VS WinForms/WPF designers need a resolvable version. -->
+    <Configuration Condition="'$(Configuration)' == ''">Debug R25</Configuration>
+  </PropertyGroup>
+
+  <!-- Derive the Revit version from the configuration suffix. -->
+  <PropertyGroup Condition="$(Configuration.Contains('R24'))">
+    <RevitVersion>2024</RevitVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="$(Configuration.Contains('R25'))">
+    <RevitVersion>2025</RevitVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="$(Configuration.Contains('R26'))">
+    <RevitVersion>2026</RevitVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="$(Configuration.Contains('R27'))">
+    <RevitVersion>2027</RevitVersion>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Revit 2025 and 2026 both run on net8.0-windows. This is per-version on purpose: a
+         future Revit that changes the runtime (e.g. .NET 9/10) overrides it in its own block. -->
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <OutputType>Library</OutputType>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
+    <ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <Platforms>AnyCPU;x86</Platforms>
+    <!-- REVIT2025 / REVIT2026 / ... so source can branch with #if where an API differs. -->
+    <DefineConstants>$(DefineConstants);REVIT$(RevitVersion)</DefineConstants>
+    <!-- Root namespace and assembly name are pinned (no spaces) and independent of the
+         "GMS Revit Addin" solution/folder display name. The icon pack:// URIs and the
+         app.config settings section depend on this assembly name. -->
+    <RootNamespace>GMSRevitAddin</RootNamespace>
+    <AssemblyName>GMSRevitAddin</AssemblyName>
+  </PropertyGroup>
+
+  <!-- Surface the Revit version, and the wall-clock time of this compile, to runtime code
+       (GmsVersion reads both). RevitVersion is the single source of truth for the
+       version-specific paths that used to hard-code "2025". BuildTimestamp exists so
+       SettingsForm can show "what build is this" without a manually-bumped version number —
+       there was none before this (the csproj never set <Version>/<AssemblyVersion>, so every
+       build shipped the SDK's default 1.0.0.0). Evaluated fresh on every build, so it always
+       reflects when THIS DLL was compiled, not when the property was last edited. -->
+  <ItemGroup>
+    <AssemblyMetadata Include="RevitVersion" Value="$(RevitVersion)" />
+    <AssemblyMetadata Include="BuildTimestamp" Value="$([System.DateTime]::Now.ToString(&quot;yyyy-MM-dd HH:mm&quot;))" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\update.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Resources\updateSchedules.png" />
+    <Resource Include="Resources\updateSchedules_dark.png" />
+    <Resource Include="Resources\framingWeight.png" />
+    <Resource Include="Resources\framingWeight_dark.png" />
+    <Resource Include="Resources\purgeFamily.png" />
+    <Resource Include="Resources\showhidetags.png" />
+    <Resource Include="Resources\cycle.png" />
+    <Resource Include="Resources\collect.png" />
+    <Resource Include="Resources\level.png" />
+    <Resource Include="Resources\sheetUpdate.png" />
+    <Resource Include="Resources\help.png" />
+    <Resource Include="Resources\calendar.png" />
+    <Resource Include="Resources\bunk.png" />
+    <Resource Include="Resources\build.png" />
+    <Resource Include="Resources\unitinfo.png" />
+    <Resource Include="Resources\dimnotes.png" />
+    <Resource Include="Resources\newUnit.png" />
+    <Resource Include="Resources\tagunits.png" />
+    <Resource Include="Resources\reset.png" />
+    <Resource Include="Resources\mhf.png" />
+    <Resource Include="Resources\nbg.png" />
+    <Resource Include="Resources\hideTags.png" />
+    <Resource Include="Resources\showTags.png" />
+    <Resource Include="Resources\settings.png" />
+    <Resource Include="Resources\nar.png" />
+    <Resource Include="Resources\unit.png" />
+    <Resource Include="Resources\export.png" />
+    <Resource Include="Resources\do.png" />
+    <Resource Include="Resources\dont.png" />
+    <Resource Include="Resources\palette_32.png" />
+    <Resource Include="Resources\palette_16.png" />
+    <Resource Include="Resources\stockopt_32.png" />
+    <Resource Include="Resources\stockopt_16.png" />
+    <!-- Monochrome light-gray icon variants used on the GMS ribbon when Revit is in dark theme
+         (see the Icon() helper in GMS_tools.cs). Generated from the originals. -->
+    <Resource Include="Resources\settings_dark.png" />
+    <Resource Include="Resources\showTags_dark.png" />
+    <Resource Include="Resources\hideTags_dark.png" />
+    <Resource Include="Resources\showhidetags_dark.png" />
+    <Resource Include="Resources\sheetUpdate_dark.png" />
+    <Resource Include="Resources\mhf_dark.png" />
+    <Resource Include="Resources\NBG_dark.png" />
+    <Resource Include="Resources\reset_dark.png" />
+    <Resource Include="Resources\Export_dark.png" />
+    <Resource Include="Resources\tagunits_dark.png" />
+    <Resource Include="Resources\newUnit_dark.png" />
+    <Resource Include="Resources\dimnotes_dark.png" />
+    <Resource Include="Resources\build_dark.png" />
+    <Resource Include="Resources\bunk_dark.png" />
+    <Resource Include="Resources\level_dark.png" />
+    <Resource Include="Resources\calendar_dark.png" />
+    <Resource Include="Resources\help_dark.png" />
+    <Resource Include="Resources\collect_dark.png" />
+    <Resource Include="Resources\palette_32_dark.png" />
+    <Resource Include="Resources\palette_16_dark.png" />
+    <Resource Include="Resources\cycle_dark.png" />
+    <Resource Include="Resources\purgeFamily_dark.png" />
+    <Resource Include="Resources\stockopt_32_dark.png" />
+    <Resource Include="Resources\stockopt_16_dark.png" />
+  </ItemGroup>
+  <!-- On .NET Core (net8/net10 for Revit 2025+) these three assemblies come from NuGet. -->
+  <ItemGroup Condition="'$(TargetFramework)' != 'net48'">
+    <!-- Microsoft.CSharp: required by the 'dynamic' keyword used in a few commands. -->
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+    <!-- System.Data.Odbc: the only "extra" framework assembly the add-in actually calls
+         (OdbcConnection/OdbcCommand in UpdateSchedules.cs for the Access extrusion DB).
+         This replaced the Microsoft.Windows.Compatibility meta-package, which pulled in ~25
+         unused assemblies (ServiceModel/Speech/Management/etc.) and bloated the deploy. -->
+    <PackageReference Include="System.Data.Odbc" Version="8.0.*" />
+    <PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />
+  </ItemGroup>
+  <!-- On .NET Framework 4.8 (Revit 2024) the same types live in the framework GAC, so reference
+       them directly instead of via NuGet. System.Data.Odbc is part of System.Data.dll there, so
+       no FlattenOdbcWindowsRuntime fix-up is needed (no runtimes\ folder is produced). -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <Reference Include="System.Data" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <!-- Microsoft.VisualBasic.ApplicationServices (machine/user info) is in the framework on net48
+         but the SDK does not auto-reference it the way .NET Core implicitly includes it. -->
+    <Reference Include="Microsoft.VisualBasic" />
+    <!-- Required to (de)serialize the binary .resx resources under net48 + the SDK resource
+         generator (see GenerateResourceUsePreserializedResources above). Deployed to output. -->
+    <PackageReference Include="System.Resources.Extensions" Version="8.0.0" />
+    <!-- ZipArchive (StockLengthOptimizer xlsx export) is built in on .NET Core but a framework
+         assembly on net48. -->
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+  </ItemGroup>
+  <!-- Revit API assemblies sourced from versioned NuGet packages (Nice3point). These are
+       reference-only: the package marks them ExcludeAssets=runtime so they are NOT copied to
+       output (the previous HintPath refs used <Private>false</Private> for the same effect).
+       The floated "<ver>.*" resolves the latest patch for that Revit major. -->
+  <ItemGroup>
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitVersion).*" />
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitVersion).*" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Update="Properties\Settings.Designer.cs">
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+  <PropertyGroup>
+    <!-- Revit runs as a 64-bit process; target x64 so the build matches the
+         RevitAPI/RevitAPIUI references and avoids the MSIL/AMD64 mismatch warning. -->
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+  <!-- Revit 2027 ships on .NET 10; override the default net8.0-windows set above.
+       WFO1000 is a new .NET 10 WinForms designer-serialization analyzer error; suppress it
+       until the affected forms (ProgressForm) are updated for the new serialization pattern. -->
+  <PropertyGroup Condition="$(Configuration.Contains('R27'))">
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <NoWarn>$(NoWarn);WFO1000</NoWarn>
+  </PropertyGroup>
+  <!-- Revit 2024 runs on .NET Framework 4.8 (Revit 2025 was the first version on .NET Core), so
+       override the default net8.0-windows. LangVersion latest enables C# 8+ syntax the source may
+       use that net48 otherwise pins to 7.3. Build R24 via the .csproj, not the .sln (the solution
+       restore evaluates TargetFramework before this per-config override — same caveat as R27). -->
+  <PropertyGroup Condition="$(Configuration.Contains('R24'))">
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <!-- The .NET SDK resource generator (used even when targeting net48) cannot emit the binary
+         (non-string) resources in the WinForms .resx files unless preserialized resources are
+         enabled; that path needs System.Resources.Extensions at build and runtime (referenced
+         in the net48 ItemGroup below). Classic msbuild did this natively; the SDK does not. -->
+    <GenerateResourceUsePreserializedResources>true</GenerateResourceUsePreserializedResources>
+    <!-- net8/net10 builds name embedded .resx resources after the dependent source file's
+         namespace+type (e.g. SettingsForm.SettingsForm.resources) via this convention, which is
+         what ComponentResourceManager(typeof(Form)) looks up at runtime. The net48 build path
+         leaves it off by default and falls back to RootNamespace+filename
+         (GMSRevitAddin.SettingsForm.resources), so every form's ResourceManager fails. Force it on
+         so net48 matches net8 and the forms find their resources. -->
+    <EmbeddedResourceUseDependentUponConvention>true</EmbeddedResourceUseDependentUponConvention>
+  </PropertyGroup>
+
+  <!-- Generate the version-specific .addin manifest from the template by substituting the
+       Revit version into the assembly install path. Runs before DeployAddin. The AddInId is
+       deliberately stable across versions (each Revit version reads its own Addins folder). -->
+  <Target Name="GenerateAddinManifest" AfterTargets="Build">
+    <PropertyGroup>
+      <GeneratedAddin>$(TargetDir)GMSRevitAddin.addin</GeneratedAddin>
+    </PropertyGroup>
+    <ReadLinesFromFile File="$(ProjectDir)GMSRevitAddin.addin.template">
+      <Output TaskParameter="Lines" ItemName="AddinTemplateLines" />
+    </ReadLinesFromFile>
+    <WriteLinesToFile File="$(GeneratedAddin)"
+                      Lines="@(AddinTemplateLines->Replace('$RevitVersion$','$(RevitVersion)'))"
+                      Overwrite="true" />
+  </Target>
+
+  <!-- Live-debug support (Debug configs only). Writes a SEPARATE add-in manifest — its own AddInId
+       and Name (GMSRevitAddin.Debug.addin.template), so it coexists with a Release deploy of the
+       real add-in without conflict — into Revit's PER-USER Addins folder
+       (%AppData%\Autodesk\Revit\Addins\<ver>\, no elevation needed, even for 2027+, since that
+       elevation requirement is specific to the ALL-USERS folder DeployAddin writes to). Points
+       straight at THIS build's own bin\ output DLL ($(TargetPath)), not a copy, so breakpoints and
+       the PDB line up with what Revit actually loads. Workflow: build Debug for the version you
+       want, then either launch that Revit version normally and use Debug > Attach to Process >
+       Revit.exe (misses OnStartup, fine for command-level debugging), or use a matching
+       Properties/launchSettings.json profile so F5 starts Revit.exe with the debugger already
+       attached (hits OnStartup too). See CLAUDE.md's "Live debugging" section. -->
+  <Target Name="GenerateDebugAddinManifest" AfterTargets="Build" Condition="$(Configuration.StartsWith('Debug'))">
+    <PropertyGroup>
+      <DebugAddinManifestDir>$(AppData)\Autodesk\Revit\Addins\$(RevitVersion)</DebugAddinManifestDir>
+    </PropertyGroup>
+    <ReadLinesFromFile File="$(ProjectDir)GMSRevitAddin.Debug.addin.template">
+      <Output TaskParameter="Lines" ItemName="DebugAddinTemplateLines" />
+    </ReadLinesFromFile>
+    <MakeDir Directories="$(DebugAddinManifestDir)" />
+    <WriteLinesToFile File="$(DebugAddinManifestDir)\GMSRevitAddinDebug.addin"
+                      Lines="@(DebugAddinTemplateLines->Replace('$TargetPath$','$(TargetPath)'))"
+                      Overwrite="true" />
+  </Target>
+
+  <!-- Revit loads the add-in as an IN-PROCESS plugin and does NOT perform .deps.json / RID-based
+       assembly resolution. System.Data.Odbc ships a cross-platform STUB at the output root
+       (lib/net*; ~100 KB) that throws "System.Data.ODBC is not supported on this platform", and the
+       real Windows implementation (~300 KB) under runtimes\win\lib\<tfm>\. Because Revit ignores the
+       RID subfolder, it loads the stub and every OdbcConnection throws. Overwrite the root copy with
+       the win-RID implementation so ODBC works in-process (affects UpdateSchedules.cs and
+       ExportParts.cs). Runs for BOTH Debug (bin, for in-process debugging) and Release (before
+       DeployAddin copies the output). Do not remove without an equivalent fix, or ODBC breaks at
+       runtime even though the build succeeds. -->
+  <Target Name="FlattenOdbcWindowsRuntime" AfterTargets="Build" BeforeTargets="DeployAddin">
+    <ItemGroup>
+      <OdbcWinRuntime Include="$(TargetDir)runtimes\win\lib\**\System.Data.Odbc.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(OdbcWinRuntime)"
+          DestinationFiles="$(TargetDir)System.Data.Odbc.dll"
+          OverwriteReadOnlyFiles="true"
+          SkipUnchangedFiles="false"
+          Condition="'@(OdbcWinRuntime)' != ''" />
+  </Target>
+
+  <!-- Deploy (Release configs only): place the build output in the version-specific install path
+       referenced by the generated .addin manifest, and copy the manifest into Revit's machine-wide
+       Addins folder so the add-in is discovered for all users. Both target folders are created if
+       absent (writing under C:\GMS or the manifest dir may need write access; access-denied fails
+       the build). Debug builds skip deploy entirely — the DLL then lives only in bin\<Config>\<tfm>\.
+       NOTE: Revit 2027+ changed the all-users manifest folder from ProgramData to Program Files. -->
+  <Target Name="DeployAddin" AfterTargets="GenerateAddinManifest"
+          Condition="$(Configuration.StartsWith('Release'))">
+    <!-- Remove the Russian satellite resources Revit does not need. -->
+    <RemoveDir Directories="$(TargetDir)ru" />
+    <!-- Drop the non-Windows runtime copies of System.Data.Odbc (freebsd/linux/osx/etc.);
+         Revit only ever loads runtimes\win on Windows. -->
+    <RemoveDir Directories="$(TargetDir)runtimes\freebsd;$(TargetDir)runtimes\illumos;$(TargetDir)runtimes\ios;$(TargetDir)runtimes\linux;$(TargetDir)runtimes\osx;$(TargetDir)runtimes\solaris;$(TargetDir)runtimes\tvos" />
+    <ItemGroup>
+      <DeployFiles Include="$(TargetDir)**\*" />
+    </ItemGroup>
+    <MakeDir Directories="C:\GMS\Revit\$(RevitVersion)\AddIns\GMSRevitAddin" />
+    <Copy SourceFiles="@(DeployFiles)"
+          DestinationFiles="@(DeployFiles->'C:\GMS\Revit\$(RevitVersion)\AddIns\GMSRevitAddin\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <!-- Revit 2025/2026 discover all-users manifests from ProgramData;
+         Revit 2027+ changed to Program Files. -->
+    <PropertyGroup>
+      <AddinManifestDir Condition="'$(RevitVersion)' &lt; '2027'">$(ProgramData)\Autodesk\Revit\Addins\$(RevitVersion)</AddinManifestDir>
+      <AddinManifestDir Condition="'$(RevitVersion)' &gt;= '2027'">$(ProgramFiles)\Autodesk\Revit\Addins\$(RevitVersion)</AddinManifestDir>
+    </PropertyGroup>
+    <MakeDir Directories="$(AddinManifestDir)" />
+    <Copy SourceFiles="$(GeneratedAddin)"
+          DestinationFolder="$(AddinManifestDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
+</Project>

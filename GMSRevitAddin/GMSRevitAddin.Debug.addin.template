@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!-- Template for the live-debug add-in manifest (Debug configs only). The build's
+     GenerateDebugAddinManifest target (see GMSRevitAddin.csproj) substitutes the build-output-path
+     token in the Assembly element below with this build's own bin\ output DLL, then writes the
+     result into Revit's PER-USER Addins folder (no elevation needed). Do not edit the generated
+     manifest directly; edit this template. Deliberately a SEPARATE AddInId/Name from
+     GMSRevitAddin.addin.template's real add-in, so both can be registered at once (a Release
+     deploy + a live-debug build) without conflict. See CLAUDE.md's "Live debugging" section. -->
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>GMS Revit Addin (Debug)</Name>
+    <Assembly>$TargetPath$</Assembly>
+    <AddInId>a71be438-ea35-4117-b3b0-4deb81d0a006</AddInId>
+    <FullClassName>GMSRevitAddin.GMS_tools</FullClassName>
+    <VendorId>GMS_Inc</VendorId>
+    <VendorDescription>Gardner Metal Systems, Inc</VendorDescription>
+  </AddIn>
+</RevitAddIns>

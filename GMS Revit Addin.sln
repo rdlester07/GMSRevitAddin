@@ -1,0 +1,42 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.10.34928.147
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GMSRevitAddin", "GMSRevitAddin\GMSRevitAddin.csproj", "{096A2488-86BA-4975-8FCC-5BAD403BE326}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug R24|Any CPU = Debug R24|Any CPU
+		Release R24|Any CPU = Release R24|Any CPU
+		Debug R25|Any CPU = Debug R25|Any CPU
+		Release R25|Any CPU = Release R25|Any CPU
+		Debug R26|Any CPU = Debug R26|Any CPU
+		Release R26|Any CPU = Release R26|Any CPU
+		Debug R27|Any CPU = Debug R27|Any CPU
+		Release R27|Any CPU = Release R27|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{096A2488-86BA-4975-8FCC-5BAD403BE326}.Debug R24|Any CPU.ActiveCfg = Debug R24|Any CPU
+		{096A2488-86BA-4975-8FCC-5BAD403BE326}.Debug R24|Any CPU.Build.0 = Debug R24|Any CPU
+		{096A2488-86BA-4975-8FCC-5BAD403BE326}.Release R24|Any CPU.ActiveCfg = Release R24|Any CPU
+		{096A2488-86BA-4975-8FCC-5BAD403BE326}.Release R24|Any CPU.Build.0 = Release R24|Any CPU
+		{096A2488-86BA-4975-8FCC-5BAD403BE326}.Debug R25|Any CPU.ActiveCfg = Debug R25|Any CPU
+		{096A2488-86BA-4975-8FCC-5BAD403BE326}.Debug R25|Any CPU.Build.0 = Debug R25|Any CPU
+		{096A2488-86BA-4975-8FCC-5BAD403BE326}.Release R25|Any CPU.ActiveCfg = Release R25|Any CPU
+		{096A2488-86BA-4975-8FCC-5BAD403BE326}.Release R25|Any CPU.Build.0 = Release R25|Any CPU
+		{096A2488-86BA-4975-8FCC-5BAD403BE326}.Debug R26|Any CPU.ActiveCfg = Debug R26|Any CPU
+		{096A2488-86BA-4975-8FCC-5BAD403BE326}.Debug R26|Any CPU.Build.0 = Debug R26|Any CPU
+		{096A2488-86BA-4975-8FCC-5BAD403BE326}.Release R26|Any CPU.ActiveCfg = Release R26|Any CPU
+		{096A2488-86BA-4975-8FCC-5BAD403BE326}.Release R26|Any CPU.Build.0 = Release R26|Any CPU
+		{096A2488-86BA-4975-8FCC-5BAD403BE326}.Debug R27|Any CPU.ActiveCfg = Debug R27|Any CPU
+		{096A2488-86BA-4975-8FCC-5BAD403BE326}.Debug R27|Any CPU.Build.0 = Debug R27|Any CPU
+		{096A2488-86BA-4975-8FCC-5BAD403BE326}.Release R27|Any CPU.ActiveCfg = Release R27|Any CPU
+		{096A2488-86BA-4975-8FCC-5BAD403BE326}.Release R27|Any CPU.Build.0 = Release R27|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {19CC2529-E95A-492D-BF7D-9EAC51FE9109}
+	EndGlobalSection
+EndGlobal

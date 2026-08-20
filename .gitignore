@@ -1,0 +1,79 @@
+## .NET / Visual Studio gitignore for the GMS_Revit2025 add-in
+## Keeps build output, IDE caches, and user-specific files out of source control.
+
+# Build results
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+build/
+bld/
+[Bb]uild/
+[Oo]ut/
+msbuild.log
+msbuild.err
+msbuild.wrn
+
+# Visual Studio cache / options
+.vs/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+*.sln.docstates
+*.VC.db
+*.VC.VC.opendb
+
+# Visual Studio profiling / build temp
+*.psess
+*.vsp
+*.vspx
+*.sap
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Rider / ReSharper
+.idea/
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+# NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+
+# Test / coverage results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.coverage
+*.coveragexml
+coverage*.json
+coverage*.xml
+
+# Misc generated / OS files
+*.tmp
+*.tmp_proj
+*_i.c
+*_p.c
+*.cache
+*.pdb
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Claude Code: settings.local.json is personal/machine-specific (permission allowlists etc.) and
+# should never be shared; settings.json (if one is added later) is the checked-in, shared config.
+.claude/settings.local.json

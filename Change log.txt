@@ -1,0 +1,197 @@
+v2.0
+
+Cleaned up extract pieces process to totally ignore legacy code for units collection. (commented out with notes to assist in readding in the future if needed)
+
+Added config file creation to store parts manager location per project and any future project based variables instead of hardcoded parts manager name located in the project path. Creates a hidden "GMS config" folder in the project folder containing the Revit model (ie. J:\000 - Project Name\2 - Main\RM - RevitModel\) then creates the "GMS.config" file in this new folder. The config file is set to hidden and readonly. Readonly must be removed before you can delete the file programmatically.
+
+Converted piece extraction process to use parts manager location from latest saved config file.
+
+Added check in piece extraction to look for any blank values (ie. same detail number, same origin letter but 2 different sheets will combine on the schedule and have a blank value for sheet). If any value is blank, throws a warning displaying all available info for the tag and skips over adding that line to the parts manager.
+
+Added settings form, moved suppress type parameter warning to settings form.
+
+Changed icon and text for show/hide tags so that the image is more visible and the image and text change in relation to the parameter value.
+
+Added feature for when duplicating a drafting view, whether or not the original view and/or the duplicated view is opened.
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+
+v2.1
+
+Changed DocumentChanged event for DuplicateViewOptions to Filter the e.GetAddedElementIds list by View>ViewType.DraftingView prior to iterating through the list.
+
+Added ViewNames which auto-updates view name upon modification of detail number or sheet number, view added to sheet, view deleted from sheet, and sheet deleted.
+
+Added View Name from Sheet Batch Update button to settings window to manually scan all views and update view name based on detail number and sheet number.
+
+Added Halftone&Dashed to convert selected objects to halftone and dashed lines (Not By GMS items).
+
+Added feature to automatically convert unit Control Lines to "not a reference".
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+
+v2.1.1
+
+Corrected NotByGMS (make halftone and dashed) to also override graphics of detail groups. Had to collect list of members of the group and override individually.
+
+Made NotByGMS recursive through nested detail groups.
+
+Made NotByGMS ignore Dimensions, Text, Detail Tags and Annotation Symbols.
+
+Created MakeHalftone (selected items to halftone. Linetypes remain unchanged).
+
+Created Reset Graphical Overrides button. Resets all graphical overrides on selected items.
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+
+v2.1.2
+
+Corrected DuplicateViews to fix unexpected behavior. Previous version, if a view was activated on a sheet, after closing both original and new duplicated view, current view was set to the activated view itself and not the sheet the view is on. In other words, it would open the view instead of returning to the sheet the view was on. New version stores last ViewActivated, which triggers when opening a view or a sheet but does not trigger when activating a viewport on a sheet. 
+
+Update NotAReference to also change "Work Points - Unit" lines to strong reference (13) and "Work Points - Module" lines to weak reference (14).
+
+Added Unit number collection for the parts manager back into the Export Parts function. 
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+
+v2.2
+
+Added TagUnits. Selection box containing units to be tagged on floor plan or elevation -> auto tag with GIT - Unit Tag (with leader if floor plan).
+
+Added a few more "error = true" in try/catch statements to attempt to prevent Extract Pieces from stating the Parts Manager successfully updated even though it didn't.
+
+Added check for array count to make sure all 5 needed strings are in a line before attempting to call parts of the array. Not having this check caused Extract Pieces to fail when a unit was incorrectly named UXXX instead of U-XXX. Now will give error message with line data.
+
+Added a check for GMS tool keyboard shortcuts for Make Haltone and Dashed (MD), Make Halftone (MH), Tag Units (TU), and Tag Visibility[Show/Hide Tags] (TV). If shortcut alias does not exist for any/all of them, updates the keyboardshortcuts.xml file to add them. Shortcuts can still be modified manually if desired.
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+
+v2.3
+
+Added CreateUnitSheet. Auto-generates unit drawing sheet with piece schedule. Can also duplicate existing unit sheet.
+
+Fixed issue where project without curtainwall panels was getting the Origin, Origin Sheet, and Origin Letter parameters added multiple times. Now code filters out elementType to collect only panels in the project. Then checks if the collection is empty. If empty(no panels) does not add params.
+
+Changes error logging for extracting pieces. Previously, each individual error had a messagebox to give as much info as possible on the piece with issues (blank prefix etc). Now, all errors are logged to a list that is exported if the user wishes to view the log after extraction.
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+
+v2.3.1
+
+Added Dimension note tool to easlily add text beneath dimensions.
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+
+v2.3.2
+
+Updated Dimension note tool window starting focus to Custom Text field and accept button to the Apply button.
+
+Added two new methods for when focus enters/leaves the Not To Scale textbox and set up the actions for the textbox accordingly. Switches accept button to buttonNotToScale when entering and back to buttonApply on leave.
+
+Updated CreateUnitSheet to pinn new schedule to unit drawing after placing it on sheet.
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+v2.4
+
+Added UnitInfo tool for updating unit build/bunk/statuses. This tool was disabled in favor of two seperate tools specifically to update unit build number and unit bunk number.
+
+Revised how keyboardshortcuts are handled. Previously the xml file was converted to a string and then parsed and modified as neccesary then saved over original file. This method did not always work correctly. New UpdateKeyboardShorcuts.cs adds/modifies directly to the xml file using xDocument. 
+
+Updated CreateUnitSheet. Previously, FEC collected all BuiltInCategory.OST_TitleBlocks then filtered out types to leave only instances. If this was the first unit sheet created, it would crash because there is no instance yet. Changed to collect only types, not instances. Then pull the type ID for use in creating the new sheet.
+
+Revised CreateUnitSheet to check if schedule name exists prior to attempting to create the schedule. If unit sheet was deleted, the schedule will remain behind unless manually deleted. This caused errors when making a new unit the same number as a deleted unit. Now, if schedule name exists, dialog pops up with options to overwrite existing schedule (delete existing then create new), use existing, or cancel.
+
+Updated SettingsForm>Create config file. When project is moved to Archive folder, model retains original GetWorksharingCentralModelPath(). This caused creation of project folder structure and config file in the Projects folder even though the model was in the Archive folder. Also, when opening out-of-house models, this would either create an unneeded config file or error out. Updated method now checks if Directory.Exists(projectRevitFolder) {fixes issue with incorrect workshare model path in moved project} and projectRevitFolder.Contains(@"Main\RM - RevitModel") {only creates config file for models in the main phase/revit model folder. Any other folder structure will be ignored}.
+
+Added Unit Release Date tool to batch update released dates on unit sheets.
+
+Changed Show/Hide tags. Previously, Labels and linework in the GIT - Piece Tag had thier visibility set to a global parameter which this function toggled on/off. However, the tag is still in the view and still selectable even though it is invisible. This version changes how show/hide tags are handled. Global variable still exists for the purpose of toggling the button graphics but this function now hides the tags in all elevation views instead of turning the linework invisible. Progress bar added as well.
+
+Progress bar feature added to help display that the program is processing and not hung.
+
+Added progress bar to ManualUpdateOrigins and ExportPars. 
+
+***Note: not too pleased with how this progress bar works. Because the fill is an animation, bar never will show 100% as the animation is halted while processes are performed. Tried using different step increments, tried making pBar.Max 100 and using percentages for increments, tried forcing progressbar.Value = progressbar.Maximum... None worked. Need to improve this progress bar in the future. 
+
+Improved ManualUpdateOrigins, UpdateOrigins, and OriginLetterUpdate to only set parameter value if != value to set. Previous versions overwrote parameter value no matter what it was. This change should help to reduce the number of non-editable object/workset warnings. 
+
+Unit SCHEDULE and piece schedule creation moved to ExportParts.
+
+Export Parts changed to no longer update tags prior to exporting. Will check for discrepancies and error out if any found.
+
+OriginLetterUpdater has been changed to look for C:\GMS\Revit\2019\Addins\PieceDescriptions.txt to populate defDictionary. Defaults to the hard coded list if !File.Exists or error in loading.
+
+Creation of unit schedule for piece extraction had an issue. Apparently because we create the Origin, Origin Letter and Origin Sheet parameters as shared parameters and convert to project parameters in code, it leaves remnants in the database. Pulling a list of SchedulableFields of a Curtainwall Panel found 3 SchedulableFields with the same name for Origin and Origin Sheet (did not search for origin letter as this is not on a schedule create through code). Previous code just took the first instance of a SchedulableField that matched the name querried...which may or may not be the parameter that is actually schedulable. This would leave the cells blank in the schedule as the field is looking at the wrong parameter. New method saves the parameter.Id as the code is checking for discrepencies. Then, during schedule creation, it searches for a SchedulableField where Field.ParameterId == parameter.Id stored earlier.
+
+Added to the OnViewActivated for a Unit drawing so that when a Unit drawing is opened it will verify that the schedule name and schedule filter match the sheet name. If not, it corrects them. I also added this to the ViewNames.SheetWatcherUpdater to check/correct these if the sheet name is changed. Note that doing this caused serveral issues caused by the detailWatcherUpdater firing during this change. I attempted to disable the detailWatcherUpdater and re-enable after update (no change in behavior), unregister detailWatcherUpdater and re-register after update (errors out. method is not allowed during execution of a dynamic update) and finally just removed error message reporting from the catch statement in the detailWatcherUpdater letting it die silently instead of crashing. This lets the SheetWatcherUpdater complete without any futher issues, though this isn't the best solution to the problem. Needs more research into how to make this work properly without disabling the error message for the detailWatcherUpdater.
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+v2.4.1
+
+SymbolWatcherUpdater crashed when creating a new unit sheet with this version. SymbolWatcherUpdater is not needed to update tags when creating a new unit sheet so this version unregisters the updater when the new unit sheet function begins then re-registers it after completion.
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+v2.4.1.1
+
+Disabled error message for updatekeyboardshortcuts until I can get time to look into it and figure out why it works on my computer but not most everyone else's. Check .net version on other computers. Could possible be the issue.
+
+Added a second check in show/hide tags. Was picking up column lines and other symbols for some reason. Not on every sheet and not every symbol on the sheet. Odd.
+
+Changed all forms to have AutoScaleMode Dpi instead of Font. This seems to have fixed the issues with rendering the forms on different screens, other than the progress bar. After also setting the label on the progress bar to Autosize=true and the form Autosize=true & Autosizemode=GrowAndShrink, this rendered correctly on M.Nantz's. Need to test on others before release.
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+v.2.4.2
+
+Changed Build and Bunk tools to set value to null if textbox is empty when Apply is clicked.
+
+Changed the workflow Show/Hide tags to chage the button graphics after process completes and check to verify tags are now shown/hidden.
+
+Added Help form containing info on custom commands and GMS Standards.
+
+Added Version number to settings form.
+------------------------------------------------------------------------------------------------------------------------------------------------------
+v.2.4.3
+
+Fixed error when loading family into model. NotAReference was not disabling event listener.
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+v.2.4.4
+
+Removed OnDocumentOpen check for Show Tags global parameter.
+
+Created separate buttons for show all and hide all tags so that it no longer needs the global parameter.
+
+Added sync before show all tags and after hide all tags.
+
+Removed OnViewActivated update of unit tag data
+
+Added TagUpdateCurrentSheet to manually update tag data on units and elevations. This only works if the active view is a sheet with no active viewports.
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+v.2.5
+Commented out overall try/catch on ViewNames and UpdateOrigins. Throwing errors when trying to update the Piece Description parameter for Glazing tags. Have yet to figure out why only Glazing tags and only occasionally throwing the error. Same error has been noticed for VN in 2021 as well.
+
+Added Collect Detail Items (Collect Dies) along with update Phase parameter feature. This collects all sheets, sorted by Sheet Set Type. Then creates a new drafting view of all detail items from selected Sheet Set Types (filtered through the CollectDiesSettingsForm). Also updates each detail item family parameters for Category (DO NOT SCHEDULE, FASTENER, EXTRUSION, COMPONENT) and Phase filter based on user selection.
+
+Added CycleWorksets. Creats a new Coordination 3D view (if it doesn't already exist), opens a form displaying all user worksets in the project and allows show/hide of these worksets. Zooms to fit after change. Form is child of Revit window so topmost of Revit but behind other apps. Form hides on view change and shows if changed view = the 3D view.
+
+Added checkbox to Settings form to allow for disabling auto renaming view from sheet name. Copying view by drag and drop causes issue with renaming resulting in duplicate view names which results in error and not allowing sync. Disabling ViewNames allows to correct this issue manually and then sync.
+
+Changed Show/Hide all tags to be on a per Sheet Set Type basis. Also does a precheck for elements checked out of the central model. Also stores current view template to the <project/Revit folder>/GMS config/ViewTemplateData folder and changes to the Tag-Elevation template when showing and back to the saved template when hiding.
+
+Added Show/Hide tags per view. Similar to above but only processes elevations on the current active view.
+------------------------------------------------------------------------------------------------------------------------------------------------------
+
+To Do:
+	* update symbolwatcherupdater. Currently crashes when new symbol loaded into project. Need to watch for that specific error, suppress it and restart symbolwatcherupdater.
+
+	* Create updater for unit schedules. Check for and delete unused unit schedules and "REMOVED_" unit view.
+
+	* Grid system to overlay on elevation that auto fills out Origin Letter (or perhaps figure out a way to just base it off of floor line in the elevation?)
+
+	* Find out why DuplicateView isn't working correctly again. Does not close views as supposed to and doesn't always return back to correct "previous" view/sheet.
+
+	* Might be a good idea to add a check to the OnViewActivated.cs so that when Unit drawing is open, it checks the piece filter for the schedule and updates to the correct unit # if incorrect.
+
+	* Improve the progress bar. See comments on v2.4

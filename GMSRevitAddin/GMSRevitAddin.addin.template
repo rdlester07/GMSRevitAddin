@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!-- Template for the version-specific add-in manifest. The build's GenerateAddinManifest
+     target (see GMSRevitAddin.csproj) substitutes $RevitVersion$ with the Revit major version
+     (e.g. 2025, 2026) and writes the result to the output dir. Do not edit the generated
+     GMSRevitAddin.addin directly; edit this template. The AddInId is intentionally stable
+     across versions. -->
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>GMS Revit Addin</Name>
+    <Assembly>C:\GMS\Revit\$RevitVersion$\AddIns\GMSRevitAddin\GMSRevitAddin.dll</Assembly>
+    <AddInId>be6e2ff5-9945-47b3-97f4-0579c4b7119d</AddInId>
+    <FullClassName>GMSRevitAddin.GMS_tools</FullClassName>
+    <VendorId>GMS_Inc</VendorId>
+    <VendorDescription>Gardner Metal Systems, Inc</VendorDescription>
+  </AddIn>
+</RevitAddIns>

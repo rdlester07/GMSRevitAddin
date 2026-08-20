@@ -1,0 +1,64 @@
+{
+    // Mirrors Properties/launchSettings.json (the Visual Studio equivalent) — see CLAUDE.md's
+    // "Live debugging" section for the full mechanics (separate per-user debug manifest, why
+    // launch profile and the active Debug R## config must be kept in sync, the file-lock rule).
+    //
+    // ⚠️ R24 (net48, .NET Framework) is NOT reliably debuggable from VS Code — the C# extension's
+    // debug adapter ("coreclr") targets .NET Core/5+ only, and VS Code has no first-party .NET
+    // Framework debugger equivalent to full Visual Studio's. The "Launch Revit 2024" config below
+    // is included for discoverability but is best-effort; use full Visual Studio's Attach to
+    // Process for R24 instead.
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Attach to Revit",
+            "type": "coreclr",
+            "request": "attach",
+            "processId": "${command:pickProcess}"
+        },
+        {
+            "name": "Launch Revit 2024 (net48 — best-effort, prefer Visual Studio)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-debug-r24",
+            "program": "C:\\Program Files\\Autodesk\\Revit 2024\\Revit.exe",
+            "args": [],
+            "cwd": "C:\\Program Files\\Autodesk\\Revit 2024",
+            "stopAtEntry": false,
+            "console": "internalConsole"
+        },
+        {
+            "name": "Launch Revit 2025",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-debug-r25",
+            "program": "C:\\Program Files\\Autodesk\\Revit 2025\\Revit.exe",
+            "args": [],
+            "cwd": "C:\\Program Files\\Autodesk\\Revit 2025",
+            "stopAtEntry": false,
+            "console": "internalConsole"
+        },
+        {
+            "name": "Launch Revit 2026",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-debug-r26",
+            "program": "C:\\Program Files\\Autodesk\\Revit 2026\\Revit.exe",
+            "args": [],
+            "cwd": "C:\\Program Files\\Autodesk\\Revit 2026",
+            "stopAtEntry": false,
+            "console": "internalConsole"
+        },
+        {
+            "name": "Launch Revit 2027",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-debug-r27",
+            "program": "C:\\Program Files\\Autodesk\\Revit 2027\\Revit.exe",
+            "args": [],
+            "cwd": "C:\\Program Files\\Autodesk\\Revit 2027",
+            "stopAtEntry": false,
+            "console": "internalConsole"
+        }
+    ]
+}
