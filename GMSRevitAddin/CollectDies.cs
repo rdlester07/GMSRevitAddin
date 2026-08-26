@@ -14,14 +14,25 @@ using System.Windows.Forms;
 
 namespace CollectDiesForm
 {
+    /// <summary>Which of the GMS-convention naming categories a family+type belongs to (its name
+    /// starts with "Fastener"/"Extrusion"/"Component"), or <see cref="Other"/> if it matches none.</summary>
+    public enum FamilyCategory
+    {
+        Fastener,
+        Extrusion,
+        Component,
+        Other
+    }
+
     /// <summary>
     /// "Collect Detail Items" dialog: lets the user pick one or more sheet "Grouping - Usage" sets
     /// (and, optionally, which phase parameters to void first), then collects every distinct detail
     /// component / family instance placed on drafting views of the matching sheets into a single new
-    /// drafting view — grouped into columns (fasteners, gasket/components, extrusions, and, if
-    /// requested, everything else — bucketed per the editable <see cref="BucketRuleSet"/>) so all the
-    /// dies/parts used across a set of sheets can be reviewed or scheduled in one place. Opened by
-    /// <see cref="LaunchForm"/> (wired to the ribbon).
+    /// drafting view — grouped into columns (fasteners, components, extrusions, and, if requested,
+    /// everything else) so the dies/parts used across a set of sheets can be reviewed or scheduled in
+    /// one place. Which of the three named categories actually get collected is controlled by the
+    /// Fasteners/Extrusions/Components checkboxes. Opened by <see cref="LaunchForm"/> (wired to the
+    /// ribbon).
     ///
     /// All state (document, the sheet list, the discovered "Grouping - Usage"/phase names, and the
     /// per-bucket family lists) is instance-level rather than static — this dialog is modal
@@ -72,6 +83,9 @@ namespace CollectDiesForm
             button_Start.Visible = true;
 
             var settings = GMSRevitAddin.Properties.Settings.Default;
+            checkBoxFasteners.Checked = settings.CollectDiesCollectFasteners;
+            checkBoxExtrusions.Checked = settings.CollectDiesCollectExtrusions;
+            checkBoxComponents.Checked = settings.CollectDiesCollectComponents;
             checkBoxCollectAll.Checked = settings.CollectDiesCollectAll;
             checkBoxCollectAllViewTypes.Checked = settings.CollectDiesCollectAllViewTypes;
 
@@ -151,6 +165,9 @@ namespace CollectDiesForm
         private void SaveSelectionSettings(List<string> phases)
         {
             var settings = GMSRevitAddin.Properties.Settings.Default;
+            settings.CollectDiesCollectFasteners = checkBoxFasteners.Checked;
+            settings.CollectDiesCollectExtrusions = checkBoxExtrusions.Checked;
+            settings.CollectDiesCollectComponents = checkBoxComponents.Checked;
             settings.CollectDiesCollectAll = checkBoxCollectAll.Checked;
             settings.CollectDiesCollectAllViewTypes = checkBoxCollectAllViewTypes.Checked;
             settings.CollectDiesSelectedPhases = string.Join(ListSeparator, phases);
@@ -164,27 +181,17 @@ namespace CollectDiesForm
             settings.Save();
         }
 
-        /// <summary>Opens the <see cref="CollectDiesRulesForm"/> bucket-rule editor. Rules are
-        /// re-loaded fresh from settings at the top of every <see cref="button_Start_Click"/> run, so
-        /// an edit made here takes effect immediately on the next Start click in this same dialog.</summary>
-        private void buttonEditRules_Click(object sender, EventArgs e)
-        {
-            using (CollectDiesRulesForm rulesForm = new CollectDiesRulesForm())
-            {
-                rulesForm.ShowDialog(this);
-            }
-        }
-
         /// <summary>
         /// If any phase checkboxes are checked, first zeroes out those phase parameters on every
         /// detail-component type in the model, then — if a sheet-set checkbox is checked and the phase
         /// step didn't error — walks every project sheet whose "Grouping - Usage" matches a selected
         /// set, collects distinct family+type combinations from its drafting-view viewports (bucketed
-        /// per <see cref="BucketRuleSet"/>), and places one instance of each into a new drafting view.
-        /// Both steps run inside a single <see cref="TransactionGroup"/> so an unexpected failure
-        /// midway (e.g. while building the new view) rolls back the phase-void step too, instead of
-        /// leaving phase parameters zeroed with no resulting view. Any placement failures are written
-        /// into a text note on the new view (a permanent record) and shown in a results dialog
+        /// by <see cref="ClassifyFamily"/> and filtered to the checked Fasteners/Extrusions/Components
+        /// categories), and places one instance of each into a new drafting view. Both steps run inside
+        /// a single <see cref="TransactionGroup"/> so an unexpected failure midway (e.g. while building
+        /// the new view) rolls back the phase-void step too, instead of leaving phase parameters
+        /// zeroed with no resulting view. Any placement failures are written into a text note on the
+        /// new view (a permanent record) and shown in a results dialog
         /// (<see cref="CollectDiesResultsController"/>) instead of aborting the run.
         /// </summary>
         private void button_Start_Click(object sender, EventArgs e)
@@ -318,14 +325,64 @@ namespace CollectDiesForm
             return error;
         }
 
+        /// <summary>
+        /// Classifies a family+type by the fixed GMS naming convention: a name starting with
+        /// "Fastener"/"Extrusion"/"Component" belongs to that <see cref="FamilyCategory"/>; anything
+        /// else is <see cref="FamilyCategory.Other"/>. For the Fastener/Extrusion categories,
+        /// <paramref name="isVariant"/> reports whether the name is the "…Plan"/"…Mod" spelling — those
+        /// are placed but flagged "do not schedule" instead of going in the category's normal column
+        /// (Components have no such variant). This intentionally mirrors the original hardcoded logic
+        /// (there was a brief detour through a user-editable rule table; it added a footgun — an
+        /// accidental grid re-sort could silently break rule precedence — for a naming convention that
+        /// never actually changes, so it's back to a fixed method).
+        /// </summary>
+        private static void ClassifyFamily(string familyAndType, out FamilyCategory category, out bool isVariant)
+        {
+            string name = familyAndType.ToLowerInvariant();
+            if (name.StartsWith("fastener"))
+            {
+                category = FamilyCategory.Fastener;
+                isVariant = name.Contains("plan");
+            }
+            else if (name.StartsWith("component"))
+            {
+                category = FamilyCategory.Component;
+                isVariant = false;
+            }
+            else if (name.StartsWith("extrusion"))
+            {
+                category = FamilyCategory.Extrusion;
+                isVariant = name.Contains("mod");
+            }
+            else
+            {
+                category = FamilyCategory.Other;
+                isVariant = false;
+            }
+        }
+
+        /// <summary>Whether <paramref name="category"/> is checked to be collected at all — the
+        /// Fasteners/Extrusions/Components checkboxes for their respective categories, or "Collect All"
+        /// for <see cref="FamilyCategory.Other"/>. Checked once per family+type up front so an
+        /// unchecked category (and its "…Plan"/"…Mod" variants) is skipped entirely rather than merely
+        /// excluded at placement time.</summary>
+        private bool IsCategorySelected(FamilyCategory category)
+        {
+            switch (category)
+            {
+                case FamilyCategory.Fastener: return checkBoxFasteners.Checked;
+                case FamilyCategory.Extrusion: return checkBoxExtrusions.Checked;
+                case FamilyCategory.Component: return checkBoxComponents.Checked;
+                default: return checkBoxCollectAll.Checked; // Other
+            }
+        }
+
         /// <summary>Scans the matching sheets' drafting-view viewports for distinct family+type
         /// combinations, then places one instance of each into a new drafting view. Runs inside its own
         /// <see cref="Transaction"/> (the caller's <see cref="TransactionGroup"/> decides whether to
         /// keep or roll back the whole run).</summary>
         private void RunCollect(CheckedListBox.CheckedIndexCollection items, List<string> phases)
         {
-            List<BucketRule> rules = BucketRuleSet.Load();
-
             List<string> selected = new List<string>();
             foreach (int index in items)
             {
@@ -384,16 +441,22 @@ namespace CollectDiesForm
                             }
                             familyNames.Add(familyAndType);
 
-                            switch (BucketRuleSet.Classify(rules, familyAndType))
+                            FamilyCategory category;
+                            bool isVariant;
+                            ClassifyFamily(familyAndType, out category, out isVariant);
+                            if (!IsCategorySelected(category))
                             {
-                                case FamilyBucket.Fastener: fastenerList.Add(fs); break;
-                                case FamilyBucket.Component: gasketList.Add(fs); break;
-                                case FamilyBucket.Extrusion: extrusionList.Add(fs); break;
-                                case FamilyBucket.DoNotSchedule: doNotSchedule.Add(fs); break;
-                                case FamilyBucket.Other:
-                                    if (checkBoxCollectAll.Checked) otherFamilies.Add(fs);
-                                    break;
+                                continue;
                             }
+
+                            if (isVariant)
+                            {
+                                doNotSchedule.Add(fs); // Fastener…Plan or Extrusion…Mod
+                            }
+                            else if (category == FamilyCategory.Fastener) fastenerList.Add(fs);
+                            else if (category == FamilyCategory.Extrusion) extrusionList.Add(fs);
+                            else if (category == FamilyCategory.Component) gasketList.Add(fs);
+                            else otherFamilies.Add(fs); // Other, and checkBoxCollectAll already confirmed checked
                         }
                     }
                 }
@@ -433,7 +496,8 @@ namespace CollectDiesForm
                     PlaceColumn(draftView, extrusionList, ref x, phases, placeProgress, failures);
 
                     // "Collect All" additionally places every do-not-schedule variant (Plan/Mod
-                    // families) and any other family type not matched by the buckets above.
+                    // families, already filtered to checked categories above) and any other family
+                    // type not matched by the buckets above.
                     if (checkBoxCollectAll.Checked)
                     {
                         List<FamilySymbol> combined = new List<FamilySymbol>(doNotSchedule);

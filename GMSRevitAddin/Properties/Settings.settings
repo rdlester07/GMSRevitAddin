@@ -53,9 +53,6 @@
     <Setting Name="CWFormLocation" Type="System.Drawing.Point" Scope="User">
       <Value Profile="(Default)">-100, -100</Value>
     </Setting>
-    <Setting Name="CollectDiesBucketRules" Type="System.String" Scope="User">
-      <Value Profile="(Default)">fastener::plan::Fastener||fastener::::DoNotSchedule||component::::Component||extrusion::mod::Extrusion||extrusion::::DoNotSchedule</Value>
-    </Setting>
     <Setting Name="CollectDiesSelectedSheetSets" Type="System.String" Scope="User">
       <Value Profile="(Default)"></Value>
     </Setting>
@@ -64,6 +61,15 @@
     </Setting>
     <Setting Name="CollectDiesCollectAll" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="CollectDiesCollectFasteners" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="CollectDiesCollectExtrusions" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="CollectDiesCollectComponents" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
     </Setting>
     <Setting Name="CollectDiesCollectAllViewTypes" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">False</Value>

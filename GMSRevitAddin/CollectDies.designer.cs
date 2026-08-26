@@ -35,7 +35,9 @@
             this.checkedListBox2 = new System.Windows.Forms.CheckedListBox();
             this.checkBoxCollectAll = new System.Windows.Forms.CheckBox();
             this.checkBoxCollectAllViewTypes = new System.Windows.Forms.CheckBox();
-            this.buttonEditRules = new System.Windows.Forms.Button();
+            this.checkBoxFasteners = new System.Windows.Forms.CheckBox();
+            this.checkBoxExtrusions = new System.Windows.Forms.CheckBox();
+            this.checkBoxComponents = new System.Windows.Forms.CheckBox();
             this.SuspendLayout();
             // 
             // checkedListBox1
@@ -99,41 +101,62 @@
             this.checkedListBox2.Size = new System.Drawing.Size(275, 394);
             this.checkedListBox2.TabIndex = 2;
             // 
+            // checkBoxFasteners
+            //
+            this.checkBoxFasteners.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.checkBoxFasteners.AutoSize = true;
+            this.checkBoxFasteners.Location = new System.Drawing.Point(8, 434);
+            this.checkBoxFasteners.Margin = new System.Windows.Forms.Padding(2);
+            this.checkBoxFasteners.Name = "checkBoxFasteners";
+            this.checkBoxFasteners.TabIndex = 6;
+            this.checkBoxFasteners.Text = "Fasteners";
+            this.checkBoxFasteners.UseVisualStyleBackColor = true;
+            //
+            // checkBoxExtrusions
+            //
+            this.checkBoxExtrusions.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.checkBoxExtrusions.AutoSize = true;
+            this.checkBoxExtrusions.Location = new System.Drawing.Point(108, 434);
+            this.checkBoxExtrusions.Margin = new System.Windows.Forms.Padding(2);
+            this.checkBoxExtrusions.Name = "checkBoxExtrusions";
+            this.checkBoxExtrusions.TabIndex = 7;
+            this.checkBoxExtrusions.Text = "Extrusions";
+            this.checkBoxExtrusions.UseVisualStyleBackColor = true;
+            //
+            // checkBoxComponents
+            //
+            this.checkBoxComponents.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.checkBoxComponents.AutoSize = true;
+            this.checkBoxComponents.Location = new System.Drawing.Point(208, 434);
+            this.checkBoxComponents.Margin = new System.Windows.Forms.Padding(2);
+            this.checkBoxComponents.Name = "checkBoxComponents";
+            this.checkBoxComponents.TabIndex = 8;
+            this.checkBoxComponents.Text = "Components";
+            this.checkBoxComponents.UseVisualStyleBackColor = true;
+            //
             // checkBoxCollectAll
-            // 
+            //
             this.checkBoxCollectAll.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.checkBoxCollectAll.AutoSize = true;
-            this.checkBoxCollectAll.Location = new System.Drawing.Point(8, 434);
+            this.checkBoxCollectAll.Location = new System.Drawing.Point(8, 457);
             this.checkBoxCollectAll.Margin = new System.Windows.Forms.Padding(2);
             this.checkBoxCollectAll.Name = "checkBoxCollectAll";
             this.checkBoxCollectAll.Size = new System.Drawing.Size(341, 17);
-            this.checkBoxCollectAll.TabIndex = 7;
+            this.checkBoxCollectAll.TabIndex = 9;
             this.checkBoxCollectAll.Text = "Include families that are not Fasteners, Components and Extrusions";
             this.checkBoxCollectAll.UseVisualStyleBackColor = true;
-            // 
+            //
             // checkBoxCollectAllViewTypes
-            // 
+            //
             this.checkBoxCollectAllViewTypes.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.checkBoxCollectAllViewTypes.AutoSize = true;
-            this.checkBoxCollectAllViewTypes.Location = new System.Drawing.Point(8, 457);
+            this.checkBoxCollectAllViewTypes.Location = new System.Drawing.Point(8, 480);
             this.checkBoxCollectAllViewTypes.Margin = new System.Windows.Forms.Padding(2);
             this.checkBoxCollectAllViewTypes.Name = "checkBoxCollectAllViewTypes";
             this.checkBoxCollectAllViewTypes.Size = new System.Drawing.Size(274, 17);
-            this.checkBoxCollectAllViewTypes.TabIndex = 8;
+            this.checkBoxCollectAllViewTypes.TabIndex = 10;
             this.checkBoxCollectAllViewTypes.Text = "Include Elevation, Floor Plan and Section view types";
             this.checkBoxCollectAllViewTypes.UseVisualStyleBackColor = true;
-            //
-            // buttonEditRules
-            //
-            this.buttonEditRules.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.buttonEditRules.Location = new System.Drawing.Point(8, 483);
-            this.buttonEditRules.Margin = new System.Windows.Forms.Padding(2);
-            this.buttonEditRules.Name = "buttonEditRules";
-            this.buttonEditRules.Size = new System.Drawing.Size(150, 29);
-            this.buttonEditRules.TabIndex = 9;
-            this.buttonEditRules.Text = "Edit Bucket Rules...";
-            this.buttonEditRules.UseVisualStyleBackColor = true;
-            this.buttonEditRules.Click += new System.EventHandler(this.buttonEditRules_Click);
             //
             // CollectDiesForm
             //
@@ -148,7 +171,9 @@
             this.Controls.Add(this.label1);
             this.Controls.Add(this.checkBoxCollectAllViewTypes);
             this.Controls.Add(this.checkBoxCollectAll);
-            this.Controls.Add(this.buttonEditRules);
+            this.Controls.Add(this.checkBoxFasteners);
+            this.Controls.Add(this.checkBoxExtrusions);
+            this.Controls.Add(this.checkBoxComponents);
             this.Controls.Add(this.button_Start);
             this.Margin = new System.Windows.Forms.Padding(2);
             this.MaximizeBox = false;
@@ -173,6 +198,8 @@
         private System.Windows.Forms.CheckedListBox checkedListBox2;
         private System.Windows.Forms.CheckBox checkBoxCollectAll;
         private System.Windows.Forms.CheckBox checkBoxCollectAllViewTypes;
-        private System.Windows.Forms.Button buttonEditRules;
+        private System.Windows.Forms.CheckBox checkBoxFasteners;
+        private System.Windows.Forms.CheckBox checkBoxExtrusions;
+        private System.Windows.Forms.CheckBox checkBoxComponents;
     }
 }
