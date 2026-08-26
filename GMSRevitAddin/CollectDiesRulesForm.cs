@@ -74,6 +74,16 @@ namespace CollectDiesForm
             bucketCol.Items.AddRange(Enum.GetNames(typeof(FamilyBucket)));
             grid.Columns.Add(bucketCol);
 
+            // Row order IS the rule precedence (first match wins) — a click-to-sort on any column
+            // header would silently reorder rules with no warning, which can make a specific rule
+            // (e.g. "fastener"+"plan") unreachable behind its own fallback ("fastener", no exclude).
+            // DataGridView's default SortMode is Automatic for an unbound grid, so this has to be
+            // turned off explicitly on every column; use Move Up/Down to reorder instead.
+            foreach (DataGridViewColumn col in grid.Columns)
+            {
+                col.SortMode = DataGridViewColumnSortMode.NotSortable;
+            }
+
             FlowLayoutPanel rowButtons = new FlowLayoutPanel
             {
                 Dock = DockStyle.Bottom,
