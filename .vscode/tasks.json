@@ -8,7 +8,10 @@
             // R24 (net48) must be built via the .csproj directly, not the .sln — see CLAUDE.md's
             // "Build & run" section (solution-level restore evaluates TargetFramework before the
             // per-configuration override that switches R24 to net48).
-            "args": ["build", "${workspaceFolder}/GMSRevitAddin/GMSRevitAddin.csproj", "-c", "Debug R24"],
+            // -p:DeployDebugManifest=true: these tasks only run as the preLaunchTask for the "Launch
+            // Revit 20##" debug configs below, so the per-user debug .addin manifest should always be
+            // (re)written here — see the GenerateDebugAddinManifest target's comment in the .csproj.
+            "args": ["build", "${workspaceFolder}/GMSRevitAddin/GMSRevitAddin.csproj", "-c", "Debug R24", "-p:DeployDebugManifest=true"],
             "problemMatcher": "$msCompile",
             "presentation": { "reveal": "silent", "panel": "shared" }
         },
@@ -16,7 +19,7 @@
             "label": "build-debug-r25",
             "type": "shell",
             "command": "dotnet",
-            "args": ["build", "${workspaceFolder}/GMS Revit Addin.sln", "-c", "Debug R25"],
+            "args": ["build", "${workspaceFolder}/GMS Revit Addin.sln", "-c", "Debug R25", "-p:DeployDebugManifest=true"],
             "problemMatcher": "$msCompile",
             "presentation": { "reveal": "silent", "panel": "shared" }
         },
@@ -24,7 +27,7 @@
             "label": "build-debug-r26",
             "type": "shell",
             "command": "dotnet",
-            "args": ["build", "${workspaceFolder}/GMS Revit Addin.sln", "-c", "Debug R26"],
+            "args": ["build", "${workspaceFolder}/GMS Revit Addin.sln", "-c", "Debug R26", "-p:DeployDebugManifest=true"],
             "problemMatcher": "$msCompile",
             "presentation": { "reveal": "silent", "panel": "shared" }
         },
@@ -33,7 +36,7 @@
             "type": "shell",
             "command": "dotnet",
             // R27 (net10.0-windows) has the same .csproj-direct requirement as R24 — see above.
-            "args": ["build", "${workspaceFolder}/GMSRevitAddin/GMSRevitAddin.csproj", "-c", "Debug R27"],
+            "args": ["build", "${workspaceFolder}/GMSRevitAddin/GMSRevitAddin.csproj", "-c", "Debug R27", "-p:DeployDebugManifest=true"],
             "problemMatcher": "$msCompile",
             "presentation": { "reveal": "silent", "panel": "shared" }
         }

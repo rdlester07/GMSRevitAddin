@@ -132,7 +132,8 @@ means getting Revit to load straight from a `bin\Debug ...\` folder and then att
 debugger to the `Revit.exe` process, rather than anything that runs the add-in standalone.
 
 - **`GenerateDebugAddinManifest`** (in [`GMSRevitAddin.csproj`](GMSRevitAddin/GMSRevitAddin.csproj),
-  Debug configs only) writes a **second, separate** add-in manifest — its own `AddInId`/`Name`, from
+  Debug configs only, **and only when `-p:DeployDebugManifest=true` is passed** — see below) writes a
+  **second, separate** add-in manifest — its own `AddInId`/`Name`, from
   [`GMSRevitAddin.Debug.addin.template`](GMSRevitAddin/GMSRevitAddin.Debug.addin.template) — into
   Revit's **per-user** Addins folder (`%AppData%\Autodesk\Revit\Addins\<ver>\`). Because it's a
   distinct `AddInId` from the real add-in's, it coexists safely with a Release deploy already sitting
@@ -141,6 +142,21 @@ debugger to the `Revit.exe` process, rather than anything that runs the add-in s
   requirement is specific to the all-users folder `DeployAddin` writes to). The generated manifest's
   `<Assembly>` points straight at **this build's own `$(TargetPath)`** in `bin\Debug <cfg>\<tfm>\` —
   not a copy — so the PDB Visual Studio loads always matches what Revit has open.
+- **⚠️ The debug manifest is opt-in, not automatic.** An ordinary `dotnet build ... -c "Debug R##"`
+  (e.g. a quick compile check) does **not** deploy the debug manifest — only a build that also passes
+  `-p:DeployDebugManifest=true` does. This exists so routine Debug builds don't silently leave a
+  live-debug manifest sitting in the per-user Addins folder. The manifest only needs to exist **once**
+  per Revit version (its `<Assembly>` path doesn't change between builds of the same config), so this
+  isn't needed on every build — only before your first live-debug session for a given version:
+  - **VS Code** already handles this — the `build-debug-r##` tasks in
+    [`.vscode/tasks.json`](.vscode/tasks.json) (used only as the `preLaunchTask` for the "Launch Revit
+    20##" configs below) pass the flag, so **F5 there just works**, same as before this flag existed.
+  - **Visual Studio** F5 (via `Properties/launchSettings.json`) builds through VS's own build system,
+    which has no equivalent way to pass an extra flag. Before your first F5 session for a given Revit
+    version, run one manual build with the flag, e.g.
+    `dotnet build "GMS Revit Addin.sln" -c "Debug R25" -p:DeployDebugManifest=true` (R24/R27: build the
+    `.csproj` directly instead, same as any other build — see "Build & run" above). After that, F5
+    keeps working normally until the DLL path changes (e.g. a different Revit version).
 - **To debug:** build the `Debug R##` config for the Revit version you want, then either
   (a) launch that Revit version normally and use **Debug > Attach to Process > `Revit.exe`** (pick
   the **.NET** code type for R25/R26/R27, or **.NET Framework** for R24) — simplest, but misses

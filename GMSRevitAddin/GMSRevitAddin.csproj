@@ -218,18 +218,35 @@
                       Overwrite="true" />
   </Target>
 
-  <!-- Live-debug support (Debug configs only). Writes a SEPARATE add-in manifest — its own AddInId
-       and Name (GMSRevitAddin.Debug.addin.template), so it coexists with a Release deploy of the
-       real add-in without conflict — into Revit's PER-USER Addins folder
-       (%AppData%\Autodesk\Revit\Addins\<ver>\, no elevation needed, even for 2027+, since that
-       elevation requirement is specific to the ALL-USERS folder DeployAddin writes to). Points
-       straight at THIS build's own bin\ output DLL ($(TargetPath)), not a copy, so breakpoints and
-       the PDB line up with what Revit actually loads. Workflow: build Debug for the version you
-       want, then either launch that Revit version normally and use Debug > Attach to Process >
-       Revit.exe (misses OnStartup, fine for command-level debugging), or use a matching
-       Properties/launchSettings.json profile so F5 starts Revit.exe with the debugger already
-       attached (hits OnStartup too). See CLAUDE.md's "Live debugging" section. -->
-  <Target Name="GenerateDebugAddinManifest" AfterTargets="Build" Condition="$(Configuration.StartsWith('Debug'))">
+  <!-- Live-debug support (Debug configs only, and only when explicitly requested — see below).
+       Writes a SEPARATE add-in manifest — its own AddInId and Name
+       (GMSRevitAddin.Debug.addin.template), so it coexists with a Release deploy of the real add-in
+       without conflict — into Revit's PER-USER Addins folder (%AppData%\Autodesk\Revit\Addins\<ver>\,
+       no elevation needed, even for 2027+, since that elevation requirement is specific to the
+       ALL-USERS folder DeployAddin writes to). Points straight at THIS build's own bin\ output DLL
+       ($(TargetPath)), not a copy, so breakpoints and the PDB line up with what Revit actually loads.
+
+       Gated behind -p:DeployDebugManifest=true (NOT on by default) so that an ordinary
+       `dotnet build ... -c "Debug R##"` — e.g. a quick compile check — does not silently deploy a
+       debug manifest every time. The manifest only needs to exist once per Revit version (its
+       <Assembly> path doesn't change between builds of the same config), so this only needs to run
+       when you actually intend to live-debug, not on every Debug build.
+       - VS Code: the build-debug-r## tasks in .vscode/tasks.json (used only as the preLaunchTask for
+         the "Launch Revit 20##" configs in .vscode/launch.json) already pass the flag, so pressing F5
+         there keeps working with no extra steps.
+       - Visual Studio: F5 (Properties/launchSettings.json) builds via VS's own build system, which
+         has no equivalent flag to pass. Before your first F5 live-debug session for a given Revit
+         version, run one manual build with the flag, e.g.
+         `dotnet build "GMS Revit Addin.sln" -c "Debug R25" -p:DeployDebugManifest=true`
+         (R24/R27: build the .csproj directly instead of the .sln, same as any other build — see
+         "Build & run" above). After that, the manifest is in place and F5 attach/launch keeps working
+         until the DLL path changes (e.g. a different Revit version).
+       Workflow otherwise unchanged: build Debug for the version you want, then either launch that
+       Revit version normally and use Debug > Attach to Process > Revit.exe (misses OnStartup, fine
+       for command-level debugging), or use a matching Properties/launchSettings.json profile so F5
+       starts Revit.exe with the debugger already attached (hits OnStartup too). See CLAUDE.md's
+       "Live debugging" section. -->
+  <Target Name="GenerateDebugAddinManifest" AfterTargets="Build" Condition="$(Configuration.StartsWith('Debug')) AND '$(DeployDebugManifest)' == 'true'">
     <PropertyGroup>
       <DebugAddinManifestDir>$(AppData)\Autodesk\Revit\Addins\$(RevitVersion)</DebugAddinManifestDir>
     </PropertyGroup>
