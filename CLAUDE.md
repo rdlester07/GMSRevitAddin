@@ -258,16 +258,17 @@ debugger to the `Revit.exe` process, rather than anything that runs the add-in s
   form to **match Revit's current UI theme** (it reads `UIThemeManager.CurrentTheme` and picks a
   light or dark variant of the palette; the name is legacy — it is no longer dark-only). 11 forms
   call it after `InitializeComponent()` (constructor or `*_Load`). **New WinForms dialogs should call
-  `DarkTheme.Apply(this)`** so they match Revit. Two surfaces theme themselves instead: the
-  `StockOptimizerForm` (its own `Theme` class) and the WPF `DetailItemPalettePane`/`WorksetCyclerWindow`
-  (their own palettes) — all keyed off `UIThemeManager` the same way. To retune colors, edit the one
+  `DarkTheme.Apply(this)`** so they match Revit. Some surfaces theme themselves instead: the
+  `StockOptimizerForm` (its own `Theme` class) and the WPF `DetailItemPalettePane`/`TaggingPalettePane`/
+  `WorksetCyclerWindow` (their own palettes) — all keyed off `UIThemeManager` the same way. To retune colors, edit the one
   `Palette` in `DarkTheme.cs`.
   - **Palette:** an **11-shade neutral gray scale** (Tailwind-gray-style: `50 f9fafb` … `950 030912`)
     used for every surface/background/border/text — **no blue/purple accent**; selection, hover, and
     pressed states sit on distinct mid-to-dark gray steps so they stay distinguishable without hue. The
-    same gray values are mirrored in `StockOptimizerForm.Theme`, `DetailItemPalettePane`, and
-    `WorksetCyclerWindow` (none of those three have been migrated to the monochrome-primary-button or
-    borderless-field conventions below yet — they're still on their pre-existing self-themed styling).
+    same gray values are mirrored in `StockOptimizerForm.Theme`, `DetailItemPalettePane`,
+    `TaggingPalettePane`, and `WorksetCyclerWindow` (none of those have been migrated to the
+    monochrome-primary-button or borderless-field conventions below yet — they're still on their
+    pre-existing self-themed styling).
     The **only** deliberate non-gray exceptions are `StockOptimizerForm`'s `Good`/`Warn`/`Bad`
     (green/amber/red, pass/warn/fail meaning) and `DarkTheme`'s own `ErrorText` (`CurrentErrorText`,
     same red hex pair as `Bad` — inline field-validation messages, see `CreateUnitSheetForm`). Keep any
@@ -310,9 +311,10 @@ debugger to the `Revit.exe` process, rather than anything that runs the add-in s
     (Windows 11's modern UI font — crisp, neutral terminals, chosen to match a reference design) and
     **falls back to `Segoe UI`** at runtime if that family isn't installed (Windows 10). It's the
     **single source of truth**: `StockOptimizerForm`, `ExportResultsForm`, and the WPF
-    `WorksetCyclerWindow` all reference it; `DetailItemPalettePane.xaml` repeats the literal
-    `FontFamily="Segoe UI Variable Text, Segoe UI"` (XAML can't bind the field, so it hard-codes the
-    same fallback list — **keep these two in sync by hand** if `UiFontName` changes again). Keep new
+    `WorksetCyclerWindow` all reference it; `DetailItemPalettePane.xaml` and `TaggingPalettePane.xaml`
+    each repeat the literal `FontFamily="Segoe UI Variable Text, Segoe UI"` (XAML can't bind the field,
+    so it hard-codes the same fallback list — **keep all three in sync by hand** if `UiFontName`
+    changes again). Keep new
     dialogs on the shared font by routing through `DarkTheme.Apply` rather than pinning a font in the
     designer. Previously preferred `Segoe UI Rounded` (an iPadOS-like bubble look) — dropped when the
     add-in's visual language moved to a crisper, non-rounded reference design. (Note: this is the Revit
@@ -353,6 +355,31 @@ The **Help** button (Settings panel) and its `KeyboardShortcuts.xml` registratio
   grabs it on the first `Idling` event (one-shot `OnFirstIdle_DetailItemPalette`) to wire the
   `ExternalEvent` + `SelectionChanged` listener. Keeps its original `GMS.Tools.DetailItemPalette`
   namespace; logs via `GmsLog`.
+- **`TaggingPalette/`** — a second **dockable pane** (`GMS.Tools.TaggingPalette` namespace, button
+  `"ShowTaggingPalette"` placed right after the Detail Item Palette button, same panel), registered
+  unconditionally in `OnStartup` (`TaggingPaletteModule.RegisterPane`) since — unlike the Detail Item
+  Palette — it needs no `UIApplication`-dependent listener wired up later; its `ExternalEvent` is
+  created lazily on first `ShowPaletteCommand.Execute`. Three tabs list family types (grouped by
+  family name) as clickable buttons: **Detail Items** (`OST_DetailComponentTags`), **Generic
+  Models** (`OST_GenericModelTags`), and **Unit/Pieces** (`OST_CurtainWallPanelTags` + the
+  `"GAIT - Piece Tag"` family, matched by name, merged together). Clicking a type button sets it as
+  the document's default type for its category (`Document.SetDefaultFamilyTypeId`) then posts the
+  matching native command — decided **three-way**, not two, in `TaggingPaletteModule.ResolveCommand`:
+  `Category.IsTagCategory` → `PostableCommand.TagByCategory`; `CategoryType.Annotation` (a plain
+  Generic Annotation family like `"GAIT - Piece Tag"`) → `PostableCommand.Symbol`; anything else →
+  `PostableCommand.PlaceAComponent` — because `PlaceAComponent` only places elements "in the building
+  model" and silently no-ops for a 2D annotation-only family. A persistent `OnIdling` handler (not
+  `ViewActivated`, which misses "Activate View" inside a sheet — a known Revit API gap) re-evaluates
+  button enablement whenever the active view changes: a Drafting View has no model geometry, so
+  types tagging a real model category (`RequiresModelView`) grey out there. Also ships
+  `TagLeaderDefaults.cs`, which defaults every newly-placed Detail Item Tags/Generic Model Tags tag's
+  Leader Type to Free End (`IndependentTag.LeaderEndCondition`), document-wide — not scoped to this
+  palette, applies no matter how the tag was placed. There's no public API to pre-seed the
+  interactive Tag tool's Options Bar leader default, so this caches new tag ids on `DocumentChanged`
+  (can't modify the document from inside that event) and corrects them on the next `Idling` tick in
+  its own transaction — the same cache-then-fix-on-idle idiom as `DuplicateViewOptions.RevitStartup`.
+  Custom icons `tagpalette_32/16(.png/_dark.png)` follow the flat-glyph recipe in "Ribbon icon
+  theming" below.
 - **`StockLengthOptimizer/`** — cutting-stock optimizer (a native C#/WinForms port of an external
   `index.html` tool) reachable from the **end of the "GMS Tools" ribbon panel**
   (`"StockLengthOptimizer.LaunchForm"`). Reads the **`(DO NOT OPEN) Framing Stock Lengths`** schedule
