@@ -226,5 +226,65 @@ namespace GMSRevitAddin.Properties {
                 this["CWFormLocation"] = value;
             }
         }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("fastener::plan::Fastener||fastener::::DoNotSchedule||component::::Component||extrusion::mod::Extrusion||extrusion::::DoNotSchedule")]
+        public string CollectDiesBucketRules {
+            get {
+                return ((string)(this["CollectDiesBucketRules"]));
+            }
+            set {
+                this["CollectDiesBucketRules"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string CollectDiesSelectedSheetSets {
+            get {
+                return ((string)(this["CollectDiesSelectedSheetSets"]));
+            }
+            set {
+                this["CollectDiesSelectedSheetSets"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string CollectDiesSelectedPhases {
+            get {
+                return ((string)(this["CollectDiesSelectedPhases"]));
+            }
+            set {
+                this["CollectDiesSelectedPhases"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool CollectDiesCollectAll {
+            get {
+                return ((bool)(this["CollectDiesCollectAll"]));
+            }
+            set {
+                this["CollectDiesCollectAll"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool CollectDiesCollectAllViewTypes {
+            get {
+                return ((bool)(this["CollectDiesCollectAllViewTypes"]));
+            }
+            set {
+                this["CollectDiesCollectAllViewTypes"] = value;
+            }
+        }
     }
 }

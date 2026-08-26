@@ -19,8 +19,9 @@ namespace CollectDiesForm
     /// (and, optionally, which phase parameters to void first), then collects every distinct detail
     /// component / family instance placed on drafting views of the matching sheets into a single new
     /// drafting view — grouped into columns (fasteners, gasket/components, extrusions, and, if
-    /// requested, everything else) so all the dies/parts used across a set of sheets can be reviewed
-    /// or scheduled in one place. Opened by <see cref="LaunchForm"/> (wired to the ribbon).
+    /// requested, everything else — bucketed per the editable <see cref="BucketRuleSet"/>) so all the
+    /// dies/parts used across a set of sheets can be reviewed or scheduled in one place. Opened by
+    /// <see cref="LaunchForm"/> (wired to the ribbon).
     ///
     /// All state (document, the sheet list, the discovered "Grouping - Usage"/phase names, and the
     /// per-bucket family lists) is instance-level rather than static — this dialog is modal
@@ -29,6 +30,10 @@ namespace CollectDiesForm
     /// </summary>
     public partial class CollectDiesForm : System.Windows.Forms.Form
     {
+        /// <summary>Separator between entries in the persisted "last selected sheet sets/phases"
+        /// settings — see <see cref="RestoreChecked"/>/<see cref="SaveSelectionSettings"/>.</summary>
+        private const string ListSeparator = "||";
+
         private readonly Document doc;
         private readonly UIDocument uiDoc;
         /// <summary>Every project sheet, gathered once by <see cref="LaunchForm.Execute"/> and reused
@@ -54,7 +59,9 @@ namespace CollectDiesForm
         /// <summary>Applies the shared theme and populates both checklists: sheet "Grouping - Usage"
         /// values (blank usage shown as "???") gathered by <see cref="LaunchForm"/>, and every
         /// "Phase"-named parameter found on the first detail-component type that has one (used to let
-        /// the user zero out phase params before collecting).</summary>
+        /// the user zero out phase params before collecting). Restores the checkbox states and
+        /// checklist selections saved from the last run of this command (see
+        /// <see cref="SaveSelectionSettings"/>).</summary>
         private void CollectDiesForm_Load(object sender, EventArgs e)
         {
             GMSRevitAddin.DarkTheme.MarkPrimary(button_Start);
@@ -63,7 +70,10 @@ namespace CollectDiesForm
 
             button_Start.Enabled = true;
             button_Start.Visible = true;
-            checkBoxCollectAll.Checked = false;
+
+            var settings = GMSRevitAddin.Properties.Settings.Default;
+            checkBoxCollectAll.Checked = settings.CollectDiesCollectAll;
+            checkBoxCollectAllViewTypes.Checked = settings.CollectDiesCollectAllViewTypes;
 
             var items = checkedListBox1.Items;
             sheetSets.Sort();
@@ -78,6 +88,7 @@ namespace CollectDiesForm
                     items.Add("???");
                 }
             }
+            RestoreChecked(checkedListBox1, settings.CollectDiesSelectedSheetSets);
 
             // Sample just the first detail-component type's parameters to discover the "Phase"
             // parameter names in use in this model (stops at the first type that has any). This has
@@ -110,6 +121,58 @@ namespace CollectDiesForm
             {
                 phases.Add(phaseType);
             }
+            RestoreChecked(checkedListBox2, settings.CollectDiesSelectedPhases);
+        }
+
+        /// <summary>Checks every item in <paramref name="box"/> whose text appears in
+        /// <paramref name="persisted"/> (a <see cref="ListSeparator"/>-delimited list saved by
+        /// <see cref="SaveSelectionSettings"/>). A name no longer present in the list (e.g. a sheet-set
+        /// usage value that no longer exists in this model) is simply not found and stays unchecked.</summary>
+        private static void RestoreChecked(CheckedListBox box, string persisted)
+        {
+            if (string.IsNullOrEmpty(persisted))
+            {
+                return;
+            }
+            HashSet<string> names = new HashSet<string>(persisted.Split(new[] { ListSeparator }, StringSplitOptions.None));
+            for (int i = 0; i < box.Items.Count; i++)
+            {
+                if (names.Contains(box.Items[i].ToString()))
+                {
+                    box.SetItemChecked(i, true);
+                }
+            }
+        }
+
+        /// <summary>Persists the current checkbox states and checked sheet-set/phase names so the next
+        /// time this dialog opens it starts from the same selection. Called unconditionally at the top
+        /// of <see cref="button_Start_Click"/> so it reflects whatever was on screen when Start was
+        /// pressed, regardless of what the run itself does afterward.</summary>
+        private void SaveSelectionSettings(List<string> phases)
+        {
+            var settings = GMSRevitAddin.Properties.Settings.Default;
+            settings.CollectDiesCollectAll = checkBoxCollectAll.Checked;
+            settings.CollectDiesCollectAllViewTypes = checkBoxCollectAllViewTypes.Checked;
+            settings.CollectDiesSelectedPhases = string.Join(ListSeparator, phases);
+
+            List<string> checkedSets = new List<string>();
+            foreach (int index in checkedListBox1.CheckedIndices)
+            {
+                checkedSets.Add(checkedListBox1.Items[index].ToString());
+            }
+            settings.CollectDiesSelectedSheetSets = string.Join(ListSeparator, checkedSets);
+            settings.Save();
+        }
+
+        /// <summary>Opens the <see cref="CollectDiesRulesForm"/> bucket-rule editor. Rules are
+        /// re-loaded fresh from settings at the top of every <see cref="button_Start_Click"/> run, so
+        /// an edit made here takes effect immediately on the next Start click in this same dialog.</summary>
+        private void buttonEditRules_Click(object sender, EventArgs e)
+        {
+            using (CollectDiesRulesForm rulesForm = new CollectDiesRulesForm())
+            {
+                rulesForm.ShowDialog(this);
+            }
         }
 
         /// <summary>
@@ -117,11 +180,12 @@ namespace CollectDiesForm
         /// detail-component type in the model, then — if a sheet-set checkbox is checked and the phase
         /// step didn't error — walks every project sheet whose "Grouping - Usage" matches a selected
         /// set, collects distinct family+type combinations from its drafting-view viewports (bucketed
-        /// by <see cref="ClassifyFamily"/>), and places one instance of each into a new drafting view.
+        /// per <see cref="BucketRuleSet"/>), and places one instance of each into a new drafting view.
         /// Both steps run inside a single <see cref="TransactionGroup"/> so an unexpected failure
         /// midway (e.g. while building the new view) rolls back the phase-void step too, instead of
-        /// leaving phase parameters zeroed with no resulting view. Any placement failures are
-        /// collected and written into a text note on the new view instead of aborting.
+        /// leaving phase parameters zeroed with no resulting view. Any placement failures are written
+        /// into a text note on the new view (a permanent record) and shown in a results dialog
+        /// (<see cref="CollectDiesResultsController"/>) instead of aborting the run.
         /// </summary>
         private void button_Start_Click(object sender, EventArgs e)
         {
@@ -133,6 +197,8 @@ namespace CollectDiesForm
             {
                 phases.Add(checkedListBox2.Items[indexChecked].ToString());
             }
+
+            SaveSelectionSettings(phases);
 
             if (!phases.Any() && items.Count == 0)
             {
@@ -258,6 +324,8 @@ namespace CollectDiesForm
         /// keep or roll back the whole run).</summary>
         private void RunCollect(CheckedListBox.CheckedIndexCollection items, List<string> phases)
         {
+            List<BucketRule> rules = BucketRuleSet.Load();
+
             List<string> selected = new List<string>();
             foreach (int index in items)
             {
@@ -316,7 +384,7 @@ namespace CollectDiesForm
                             }
                             familyNames.Add(familyAndType);
 
-                            switch (ClassifyFamily(familyAndType))
+                            switch (BucketRuleSet.Classify(rules, familyAndType))
                             {
                                 case FamilyBucket.Fastener: fastenerList.Add(fs); break;
                                 case FamilyBucket.Component: gasketList.Add(fs); break;
@@ -342,6 +410,7 @@ namespace CollectDiesForm
             string ps = "Placing item {0} of " + placeCount.ToString() + "...";
 
             ViewDrafting newView;
+            List<PlacementFailure> failures = new List<PlacementFailure>();
             using (ProgressForm.ProgressForm placeProgress = new ProgressForm.ProgressForm(captionText, ps, Math.Max(placeCount, 1), "Finishing..."))
             {
                 this.Visible = false;
@@ -355,33 +424,29 @@ namespace CollectDiesForm
                     draftView.Name = "Detail Items - " + newViewName + DateTime.Now.ToString("yyyyMMddHHmmss");
                     newView = draftView;
 
-                    string errorList = "";
-
-                    // Each family bucket is placed down its own column (x offset), stacked vertically
-                    // (y decreasing) within the column.
-                    double x = 1.5;
-                    PlaceColumn(draftView, fastenerList, x, .5, phases, placeProgress, ref errorList);
-
-                    x += 1.5;
-                    PlaceColumn(draftView, gasketList, x, .5, phases, placeProgress, ref errorList);
-
-                    x += 1.5;
-                    PlaceColumn(draftView, extrusionList, x, 1, phases, placeProgress, ref errorList);
+                    // Each family bucket is placed down its own column, wrapping into additional
+                    // columns as needed (see PlaceColumn); x tracks where the next bucket's column(s)
+                    // should start, advanced past whatever column(s) the previous bucket used.
+                    double x = 1.0;
+                    PlaceColumn(draftView, fastenerList, ref x, phases, placeProgress, failures);
+                    PlaceColumn(draftView, gasketList, ref x, phases, placeProgress, failures);
+                    PlaceColumn(draftView, extrusionList, ref x, phases, placeProgress, failures);
 
                     // "Collect All" additionally places every do-not-schedule variant (Plan/Mod
                     // families) and any other family type not matched by the buckets above.
                     if (checkBoxCollectAll.Checked)
                     {
-                        x += 1.5;
                         List<FamilySymbol> combined = new List<FamilySymbol>(doNotSchedule);
                         combined.AddRange(otherFamilies);
-                        PlaceColumn(draftView, combined, x, 1, phases, placeProgress, ref errorList, flagOnly: doNotSchedule);
+                        PlaceColumn(draftView, combined, ref x, phases, placeProgress, failures, flagOnly: doNotSchedule);
                     }
 
-                    if (!string.IsNullOrWhiteSpace(errorList))
+                    if (failures.Count > 0)
                     {
+                        string errorText = string.Join(System.Environment.NewLine,
+                            failures.Select(fl => fl.FamilyName + " - " + fl.TypeName));
                         ElementId defaultTypeId = doc.GetDefaultElementTypeId(ElementTypeGroup.TextNoteType);
-                        TextNote.Create(doc, draftView.Id, new XYZ(0, 0, 0), .25, errorList, defaultTypeId);
+                        TextNote.Create(doc, draftView.Id, new XYZ(0, 0, 0), .25, errorText, defaultTypeId);
                     }
 
                     tr1.Commit();
@@ -396,67 +461,84 @@ namespace CollectDiesForm
             {
                 GMSRevitAddin.GmsLog.Error("CollectDies: uiDoc is null");
             }
+
+            if (failures.Count > 0)
+            {
+                CollectDiesResultsController.ShowResults(failures, GMSRevitAddin.GmsUi.Owner);
+            }
         }
 
-        /// <summary>Places one instance of each symbol in <paramref name="column"/> down a single
-        /// column at <paramref name="x"/>, stacked by <paramref name="rowHeight"/>. Every placed
-        /// instance's type has <paramref name="phases"/> flagged "do not schedule" (value 1) unless
-        /// <paramref name="flagOnly"/> is given, in which case only symbols in that list are flagged
-        /// (used by the combined do-not-schedule + other column). Placement failures are logged and
-        /// appended to <paramref name="errorList"/> instead of aborting the rest of the column.</summary>
-        private void PlaceColumn(ViewDrafting draftView, List<FamilySymbol> column, double x, double rowHeight,
-            List<string> phases, ProgressForm.ProgressForm progress, ref string errorList, List<FamilySymbol> flagOnly = null)
+        /// <summary>
+        /// Places one instance of each symbol in <paramref name="column"/>, stacked in a column
+        /// starting at x = <paramref name="x"/>. Row spacing comes from each instance's own actual
+        /// bounding box (read after a mid-transaction <see cref="Document.Regenerate"/>) rather than a
+        /// fixed guess, so items never overlap regardless of how tall/short each detail item actually
+        /// is. Once a column's accumulated height passes <c>MaxColumnHeightFeet</c>, placement wraps
+        /// into a new column to its right, so a long bucket runs across several columns instead of one
+        /// endless one. <paramref name="x"/> is advanced past every column this bucket used, ready for
+        /// the next bucket's call.
+        ///
+        /// Every placed instance's type has <paramref name="phases"/> flagged "do not schedule" (value
+        /// 1) unless <paramref name="flagOnly"/> is given, in which case only symbols in that list are
+        /// flagged (used by the combined do-not-schedule + other column). Placement failures are logged
+        /// and added to <paramref name="failures"/> instead of aborting the rest of the column.
+        /// </summary>
+        private void PlaceColumn(ViewDrafting draftView, List<FamilySymbol> column, ref double x,
+            List<string> phases, ProgressForm.ProgressForm progress, List<PlacementFailure> failures,
+            List<FamilySymbol> flagOnly = null)
         {
+            const double RowGapFeet = 0.25;
+            const double ColumnGapFeet = 1.0;
+            const double MaxColumnHeightFeet = 30.0;
+            const double FallbackSpanFeet = 0.5; // used if a placed instance's bounding box can't be read
+
             double y = 0;
+            double columnHeight = 0;
+            double columnWidth = 0;
+
             foreach (FamilySymbol fmsy in column)
             {
-                y -= rowHeight;
                 progress.Visible = true;
                 progress.Increment();
 
                 try
                 {
                     FamilyInstance newFI = doc.Create.NewFamilyInstance(new XYZ(x, y, 0), fmsy, draftView);
+                    doc.Regenerate(); // so get_BoundingBox below reflects the instance just placed
+
                     if (flagOnly == null || flagOnly.Contains(fmsy))
                     {
                         Element elm = doc.GetElement(newFI.GetTypeId());
                         updateParameters(phases, elm);
                     }
+
+                    BoundingBoxXYZ bb = newFI.get_BoundingBox(draftView);
+                    double height = bb != null ? Math.Max(bb.Max.Y - bb.Min.Y, RowGapFeet) : FallbackSpanFeet;
+                    double width = bb != null ? Math.Max(bb.Max.X - bb.Min.X, RowGapFeet) : FallbackSpanFeet;
+
+                    columnWidth = Math.Max(columnWidth, width);
+                    y -= height + RowGapFeet;
+                    columnHeight += height + RowGapFeet;
+
+                    if (columnHeight > MaxColumnHeightFeet)
+                    {
+                        x += columnWidth + ColumnGapFeet;
+                        y = 0;
+                        columnHeight = 0;
+                        columnWidth = 0;
+                    }
                 }
                 catch (Exception ex)
                 {
-                    y += rowHeight;
                     GMSRevitAddin.GmsLog.Error("CollectDies: failed to place " + fmsy.FamilyName + " - " + fmsy.Name, ex);
-                    errorList += fmsy.FamilyName + " - " + fmsy.Name + System.Environment.NewLine;
+                    failures.Add(new PlacementFailure { FamilyName = fmsy.FamilyName, TypeName = fmsy.Name, Reason = ex.Message });
                 }
             }
-        }
 
-        private enum FamilyBucket { Fastener, Component, Extrusion, DoNotSchedule, Other }
-
-        /// <summary>
-        /// Buckets a family+type by the GMS naming convention: plain "Fastener"/"Extrusion" families
-        /// are scheduled columns; their "...Plan"/"...Mod" variants are placed but flagged "do not
-        /// schedule"; "Component" families (gaskets) are always scheduled; anything else is
-        /// <see cref="FamilyBucket.Other"/> and is only collected when "Collect All" is checked. Pulled
-        /// out of the placement loop into one place so the rule set is easy to find and extend.
-        /// </summary>
-        private static FamilyBucket ClassifyFamily(string familyAndType)
-        {
-            string name = familyAndType.ToLowerInvariant();
-            if (name.StartsWith("fastener"))
-            {
-                return name.Contains("plan") ? FamilyBucket.DoNotSchedule : FamilyBucket.Fastener;
-            }
-            if (name.StartsWith("component"))
-            {
-                return FamilyBucket.Component;
-            }
-            if (name.StartsWith("extrusion"))
-            {
-                return name.Contains("mod") ? FamilyBucket.DoNotSchedule : FamilyBucket.Extrusion;
-            }
-            return FamilyBucket.Other;
+            // Advance past this bucket's last (possibly partial) column so the next bucket starts
+            // clear of it. If the column was empty this just reserves a small gap, same as the
+            // original fixed-offset scheme always did regardless of whether a bucket had any items.
+            x += columnWidth + ColumnGapFeet;
         }
 
         /// <summary>Sets every parameter named in <paramref name="phases"/> to 1 ("do not schedule") on

@@ -35,6 +35,7 @@
             this.checkedListBox2 = new System.Windows.Forms.CheckedListBox();
             this.checkBoxCollectAll = new System.Windows.Forms.CheckBox();
             this.checkBoxCollectAllViewTypes = new System.Windows.Forms.CheckBox();
+            this.buttonEditRules = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // checkedListBox1
@@ -53,7 +54,7 @@
             // button_Start
             // 
             this.button_Start.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.button_Start.Location = new System.Drawing.Point(480, 445);
+            this.button_Start.Location = new System.Drawing.Point(480, 483);
             this.button_Start.Margin = new System.Windows.Forms.Padding(2);
             this.button_Start.Name = "button_Start";
             this.button_Start.Size = new System.Drawing.Size(87, 29);
@@ -121,20 +122,33 @@
             this.checkBoxCollectAllViewTypes.TabIndex = 8;
             this.checkBoxCollectAllViewTypes.Text = "Include Elevation, Floor Plan and Section view types";
             this.checkBoxCollectAllViewTypes.UseVisualStyleBackColor = true;
-            // 
+            //
+            // buttonEditRules
+            //
+            this.buttonEditRules.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.buttonEditRules.Location = new System.Drawing.Point(8, 483);
+            this.buttonEditRules.Margin = new System.Windows.Forms.Padding(2);
+            this.buttonEditRules.Name = "buttonEditRules";
+            this.buttonEditRules.Size = new System.Drawing.Size(150, 29);
+            this.buttonEditRules.TabIndex = 9;
+            this.buttonEditRules.Text = "Edit Bucket Rules...";
+            this.buttonEditRules.UseVisualStyleBackColor = true;
+            this.buttonEditRules.Click += new System.EventHandler(this.buttonEditRules_Click);
+            //
             // CollectDiesForm
-            // 
+            //
             this.AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
             this.AutoSize = true;
             this.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
-            this.ClientSize = new System.Drawing.Size(575, 482);
+            this.ClientSize = new System.Drawing.Size(575, 520);
             this.Controls.Add(this.checkedListBox2);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.checkedListBox1);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.checkBoxCollectAllViewTypes);
             this.Controls.Add(this.checkBoxCollectAll);
+            this.Controls.Add(this.buttonEditRules);
             this.Controls.Add(this.button_Start);
             this.Margin = new System.Windows.Forms.Padding(2);
             this.MaximizeBox = false;
@@ -159,5 +173,6 @@
         private System.Windows.Forms.CheckedListBox checkedListBox2;
         private System.Windows.Forms.CheckBox checkBoxCollectAll;
         private System.Windows.Forms.CheckBox checkBoxCollectAllViewTypes;
+        private System.Windows.Forms.Button buttonEditRules;
     }
 }
