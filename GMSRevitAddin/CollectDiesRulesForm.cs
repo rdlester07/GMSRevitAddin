@@ -61,12 +61,17 @@ namespace CollectDiesForm
             };
             grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Prefix", HeaderText = "Family name starts with" });
             grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Exclude", HeaderText = "…unless it also contains" });
+            // Populate via Items (plain strings), not DataSource bound to Enum.GetValues() — the
+            // latter is a known DataGridViewComboBoxColumn trap that throws "DataGridViewComboBoxCell
+            // value is not valid" the moment the user picks a NEW value from the dropdown (initial
+            // display looks fine; only interacting with the picklist breaks). Items compares by
+            // string equality instead of going through the DataSource/CurrencyManager binding path.
             DataGridViewComboBoxColumn bucketCol = new DataGridViewComboBoxColumn
             {
                 Name = "Bucket",
                 HeaderText = "Bucket",
-                DataSource = Enum.GetValues(typeof(FamilyBucket)),
             };
+            bucketCol.Items.AddRange(Enum.GetNames(typeof(FamilyBucket)));
             grid.Columns.Add(bucketCol);
 
             FlowLayoutPanel rowButtons = new FlowLayoutPanel
@@ -120,7 +125,7 @@ namespace CollectDiesForm
             grid.Rows.Clear();
             foreach (BucketRule rule in rules)
             {
-                grid.Rows.Add(rule.Prefix, rule.Exclude, rule.Bucket);
+                grid.Rows.Add(rule.Prefix, rule.Exclude, rule.Bucket.ToString());
             }
         }
 
@@ -171,8 +176,12 @@ namespace CollectDiesForm
                     continue; // a rule with no prefix can never match anything — silently dropped
                 }
                 string exclude = Convert.ToString(row.Cells["Exclude"].Value ?? "").Trim();
-                object bucketValue = row.Cells["Bucket"].Value;
-                FamilyBucket bucket = bucketValue is FamilyBucket fb ? fb : FamilyBucket.Other;
+                string bucketName = Convert.ToString(row.Cells["Bucket"].Value ?? "");
+                FamilyBucket bucket;
+                if (!Enum.TryParse(bucketName, out bucket))
+                {
+                    bucket = FamilyBucket.Other;
+                }
                 rules.Add(new BucketRule(prefix.ToLowerInvariant(), exclude.ToLowerInvariant(), bucket));
             }
 
