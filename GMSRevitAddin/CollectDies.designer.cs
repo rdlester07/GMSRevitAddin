@@ -157,6 +157,7 @@
             this.checkBoxCollectAllViewTypes.TabIndex = 10;
             this.checkBoxCollectAllViewTypes.Text = "Include Elevation, Floor Plan and Section view types";
             this.checkBoxCollectAllViewTypes.UseVisualStyleBackColor = true;
+            this.checkBoxCollectAllViewTypes.Visible = false;
             //
             // CollectDiesForm
             //

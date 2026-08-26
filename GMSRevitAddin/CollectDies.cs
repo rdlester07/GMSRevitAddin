@@ -87,7 +87,10 @@ namespace CollectDiesForm
             checkBoxExtrusions.Checked = settings.CollectDiesCollectExtrusions;
             checkBoxComponents.Checked = settings.CollectDiesCollectComponents;
             checkBoxCollectAll.Checked = settings.CollectDiesCollectAll;
-            checkBoxCollectAllViewTypes.Checked = settings.CollectDiesCollectAllViewTypes;
+            // checkBoxCollectAllViewTypes is hidden (Visible = false in the designer) and no longer
+            // restored from settings, so it stays permanently unchecked — collection is always
+            // drafting-view-only now, regardless of what a prior session had saved before it was
+            // hidden. Left in place (not deleted) so it's a one-line change to bring back.
 
             var items = checkedListBox1.Items;
             sheetSets.Sort();
