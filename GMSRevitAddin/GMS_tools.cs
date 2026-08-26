@@ -118,6 +118,21 @@ namespace GMSRevitAddin
             }
             catch (System.Exception __ex) { GMSRevitAddin.GmsLog.Error("GMS_tools.PaletteUnsubscribe", __ex); }
 
+            // Tag Leader defaults: drop the persistent Idling subscription (DocumentChanged is
+            // unsubscribed implicitly with the add-in unload; Idling is the one that keeps firing).
+            try
+            {
+                application.Idling -= GMS.Tools.TaggingPalette.TagLeaderDefaults.OnIdling;
+            }
+            catch (System.Exception __ex) { GMSRevitAddin.GmsLog.Error("GMS_tools.TagLeaderDefaultsUnsubscribe", __ex); }
+
+            // Tagging Palette: drop its persistent Idling subscription too.
+            try
+            {
+                application.Idling -= GMS.Tools.TaggingPalette.TaggingPaletteModule.OnIdling;
+            }
+            catch (System.Exception __ex) { GMSRevitAddin.GmsLog.Error("GMS_tools.TaggingPaletteIdlingUnsubscribe", __ex); }
+
             return Result.Succeeded;
         }
 
@@ -173,6 +188,37 @@ namespace GMSRevitAddin
                 application.Idling += OnFirstIdle_DetailItemPalette;
             }
             catch (System.Exception __ex) { GMSRevitAddin.GmsLog.Error("GMS_tools.RegisterPane", __ex); }
+
+            // Tagging Palette: dockable panes MUST be registered during OnStartup. Unlike the Detail
+            // Item Palette it has no persistent event subscription to wire up later (no
+            // SelectionChanged listener — it refreshes on demand instead), so no Idling handler is
+            // needed here; ShowPaletteCommand creates the ExternalEvent lazily on first use.
+            try
+            {
+                GMS.Tools.TaggingPalette.TaggingPaletteModule.RegisterPane(application);
+            }
+            catch (System.Exception __ex) { GMSRevitAddin.GmsLog.Error("GMS_tools.RegisterTaggingPane", __ex); }
+
+            // Tagging Palette: keep button enablement in sync as the user switches views (a
+            // Drafting View has no model geometry, so Generic Model / Curtain Wall Panel tag
+            // buttons grey out there — see TaggingPaletteModule.ApplyEnablement). Idling, not
+            // ViewActivated — ViewActivated misses "Activate View" inside a sheet (see
+            // TaggingPaletteModule.OnIdling for why).
+            try
+            {
+                application.Idling += GMS.Tools.TaggingPalette.TaggingPaletteModule.OnIdling;
+            }
+            catch (System.Exception __ex) { GMSRevitAddin.GmsLog.Error("GMS_tools.RegisterTaggingPaneIdling", __ex); }
+
+            // Tag Leader defaults ("Free End" for Detail Item Tags / Generic Model Tags — see
+            // TagLeaderDefaults.cs): a persistent Idling subscription, unlike the one-shot handlers
+            // above, since it needs to keep correcting newly placed tags for the whole session.
+            try
+            {
+                application.ControlledApplication.DocumentChanged += GMS.Tools.TaggingPalette.TagLeaderDefaults.ControlledApplication_DocumentChanged;
+                application.Idling += GMS.Tools.TaggingPalette.TagLeaderDefaults.OnIdling;
+            }
+            catch (System.Exception __ex) { GMSRevitAddin.GmsLog.Error("GMS_tools.RegisterTagLeaderDefaults", __ex); }
             // Register Cycle Worksets application-level events (WPF window behavior)
             try
             {
@@ -399,6 +445,16 @@ namespace GMSRevitAddin
             pbDip.ToolTip = "Show / focus the Detail Item Palette. Shortcut: DP";
             pbDip.LargeImage = Icon("palette_32.png");
             pbDip.Image = Icon("palette_16.png");
+
+            // "Tagging Palette" button — dockable pane with per-category tag/component type
+            // buttons, in three stacked panels (Detail Item Tags / Unit / Piece Tags / Generic Model
+            // Tags). See TaggingPalette/.
+            // Placed right after the Detail Item Palette button, same panel, by request.
+            PushButtonData taggingPaletteData = new PushButtonData("ShowTaggingPalette", "Tagging" + System.Environment.NewLine + "Palette", thisAssemblyPath, "GMS.Tools.TaggingPalette.ShowPaletteCommand");
+            PushButton pbTaggingPalette = GMSDetailItems.AddItem(taggingPaletteData) as PushButton;
+            pbTaggingPalette.ToolTip = "Show / focus the Tagging Palette (Detail Item Tags, Unit / Piece Tags, Generic Model Tags).";
+            pbTaggingPalette.LargeImage = Icon("tagpalette_32.png");
+            pbTaggingPalette.Image = Icon("tagpalette_16.png");
 
             // "Cycle Worksets" button.
             PushButtonData cycleWorksetsData = new PushButtonData("Cycle Worksets", "Cycle" + System.Environment.NewLine + "Worksets", thisAssemblyPath, "CycleWorksets.LaunchForm");

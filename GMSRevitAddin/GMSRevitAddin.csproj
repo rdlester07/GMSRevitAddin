@@ -93,6 +93,8 @@
     <Resource Include="Resources\palette_16.png" />
     <Resource Include="Resources\stockopt_32.png" />
     <Resource Include="Resources\stockopt_16.png" />
+    <Resource Include="Resources\tagpalette_32.png" />
+    <Resource Include="Resources\tagpalette_16.png" />
     <!-- Monochrome light-gray icon variants used on the GMS ribbon when Revit is in dark theme
          (see the Icon() helper in GMS_tools.cs). Generated from the originals. -->
     <Resource Include="Resources\settings_dark.png" />
@@ -119,6 +121,8 @@
     <Resource Include="Resources\purgeFamily_dark.png" />
     <Resource Include="Resources\stockopt_32_dark.png" />
     <Resource Include="Resources\stockopt_16_dark.png" />
+    <Resource Include="Resources\tagpalette_32_dark.png" />
+    <Resource Include="Resources\tagpalette_16_dark.png" />
   </ItemGroup>
   <!-- On .NET Core (net8/net10 for Revit 2025+) these three assemblies come from NuGet. -->
   <ItemGroup Condition="'$(TargetFramework)' != 'net48'">
