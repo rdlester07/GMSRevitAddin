@@ -33,13 +33,18 @@ namespace CollectDiesForm
             TopMost = true;
             ShowIcon = false;
 
+            // AutoSize + Dock=Top (no fixed Height) lets the label grow to whatever height its
+            // wrapped text actually needs at DarkTheme's font — a fixed guessed Height clipped the
+            // second line once DarkTheme.Apply below switches the font.
             Label hint = new Label
             {
                 Dock = DockStyle.Top,
-                Height = 48,
-                Padding = new Padding(10, 8, 10, 4),
-                Text = "A family+type is placed in the first bucket whose rule matches its name (checked top to " +
-                       "bottom). \"Exclude if contains\" is optional. Anything matching no rule goes in \"Other\"."
+                AutoSize = true,
+                MaximumSize = new Size(0, 0), // no cap on height; width is still constrained by Dock
+                Padding = new Padding(10, 8, 10, 8),
+                Text = "A family+type is placed in the first bucket whose rule matches its name " +
+                       "(checked top to bottom). \"Exclude if contains\" is optional. Anything " +
+                       "matching no rule goes in \"Other\"."
             };
 
             grid = new DataGridView
