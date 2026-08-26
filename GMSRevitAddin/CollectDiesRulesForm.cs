@@ -26,6 +26,11 @@ namespace CollectDiesForm
             StartPosition = FormStartPosition.CenterScreen;
             MinimizeBox = false;
             MaximizeBox = false;
+            // CollectDiesForm (this dialog's owner) is TopMost, which puts it in Windows' own
+            // always-on-top z-order tier. An owned dialog that isn't ALSO TopMost can get pushed
+            // behind a TopMost owner despite the owner/owned relationship — matching it here keeps
+            // this dialog in front, where ShowDialog(owner) already intends it to stay.
+            TopMost = true;
             ShowIcon = false;
 
             Label hint = new Label
