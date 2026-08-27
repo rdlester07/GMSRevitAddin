@@ -103,6 +103,10 @@ namespace GMS.Tools.TaggingPalette
         // the codebase's ElementId-comparison idiom).
         private static long? _lastActiveViewIdValue;
 
+        // One-shot guard for the startup force-hide below (OnIdling fires continuously; this must
+        // only act once per Revit session).
+        private static bool _forcedInitialHide;
+
         /// <summary>Re-evaluates which buttons are enabled for the now-active view (a Drafting
         /// View can't show model geometry, so any type that tags a real model category has nothing
         /// to tag there) and pushes the change straight to the already-bound buttons via
@@ -133,7 +137,9 @@ namespace GMS.Tools.TaggingPalette
         /// — so it silently missed exactly the sheet-workflow case this feature needs). Idling
         /// fires very frequently but the check is cheap (one nullable-long comparison) and skips
         /// everything else — the real work only runs when the pane is shown AND the active view id
-        /// actually changed since the last tick.
+        /// actually changed since the last tick. Also does one unrelated one-time job on its first
+        /// call: force-closing the pane if Revit auto-reopened it from persisted session state (see
+        /// the comment inline below).
         /// </summary>
         public static void OnIdling(object sender, IdlingEventArgs e)
         {
@@ -144,6 +150,23 @@ namespace GMS.Tools.TaggingPalette
                 DockablePane pane;
                 try { pane = uiApp.GetDockablePane(PaneId); }
                 catch (Autodesk.Revit.Exceptions.ArgumentException) { return; }
+
+                // Revit persists a dockable pane's shown/hidden state across sessions, keyed by
+                // AddInId + DockablePaneId — so if the palette was left open when Revit last
+                // closed, Revit re-opens it itself as soon as a document loads, before the user
+                // has asked for it this session. Force it closed exactly once per session so the
+                // palette always starts off on a fresh project; the user opens it explicitly via
+                // the ribbon button (ShowPaletteCommand), same as any other tool.
+                if (!_forcedInitialHide)
+                {
+                    _forcedInitialHide = true;
+                    if (pane.IsShown())
+                    {
+                        try { pane.Hide(); }
+                        catch (System.Exception ex) { GmsLog.Error("TaggingPaletteModule.ForceInitialHide", ex); }
+                    }
+                }
+
                 if (!pane.IsShown()) return;
 
                 long? activeViewIdValue = uiApp.ActiveUIDocument?.Document?.ActiveView?.Id.Value;
