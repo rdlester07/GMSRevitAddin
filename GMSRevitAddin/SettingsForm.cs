@@ -804,11 +804,11 @@ namespace SettingsForm
                         }
                         else
                         {
-                            TaskDialog td = new TaskDialog("Error");
-                            td.MainInstruction = "Could not find project directory beginning with " + projectNumber + ".";
-                            td.CommonButtons = TaskDialogCommonButtons.Close;
-                            TaskDialogResult tdr = td.Show();
-
+                            // No share folder matches this project's number (e.g. a scratch/test
+                            // project, or one not yet set up on the share). LoadConfig runs
+                            // automatically on every document open/sync/save (see RevitStartup
+                            // below), not from an explicit user action, so skip silently rather
+                            // than interrupting the user with a dialog every time.
                             modelPath = null;
                         }
                     }
