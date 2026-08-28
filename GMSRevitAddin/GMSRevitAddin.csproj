@@ -50,10 +50,11 @@
        SettingsForm can show "what build is this" without a manually-bumped version number —
        there was none before this (the csproj never set <Version>/<AssemblyVersion>, so every
        build shipped the SDK's default 1.0.0.0). Evaluated fresh on every build, so it always
-       reflects when THIS DLL was compiled, not when the property was last edited. -->
+       reflects when THIS DLL was compiled, not when the property was last edited. 12-hour
+       clock with AM/PM ("hh:mm tt"), per user preference. -->
   <ItemGroup>
     <AssemblyMetadata Include="RevitVersion" Value="$(RevitVersion)" />
-    <AssemblyMetadata Include="BuildTimestamp" Value="$([System.DateTime]::Now.ToString(&quot;yyyy-MM-dd HH:mm&quot;))" />
+    <AssemblyMetadata Include="BuildTimestamp" Value="$([System.DateTime]::Now.ToString(&quot;yyyy-MM-dd hh:mm tt&quot;))" />
   </ItemGroup>
 
   <ItemGroup>

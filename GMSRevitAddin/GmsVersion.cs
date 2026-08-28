@@ -26,8 +26,9 @@ namespace GMSRevitAddin
         }
 
         /// <summary>
-        /// When this DLL was compiled ("yyyy-MM-dd HH:mm", local time of the build machine), e.g.
-        /// "2026-08-19 16:46". There is no meaningful version number to show instead — the csproj
+        /// When this DLL was compiled ("yyyy-MM-dd hh:mm tt", 12-hour clock, local time of the
+        /// build machine), e.g. "2026-08-19 04:46 PM". There is no meaningful version number to
+        /// show instead — the csproj
         /// never sets &lt;Version&gt;/&lt;AssemblyVersion&gt;, so every build's
         /// AssemblyFileVersion is the SDK's unchanging default 1.0.0.0. This is what
         /// <c>SettingsForm</c> shows so a deployed build can actually be identified.
