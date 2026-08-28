@@ -167,10 +167,25 @@ namespace GMS.Tools.TaggingPalette
                 // land on a later tick than the add-in's first observed one, after a one-shot check
                 // has already given up watching. Once the user has asked for it, this stops acting
                 // for the rest of the session — see _userRequestedShow.
-                if (!_userRequestedShow && pane.IsShown())
+                //
+                // Unlike the Detail Item Palette (see PaletteModule.OnSelectionChanged, commit
+                // 14992e0), this pane has no SelectionChanged-driven refresh or any other entry
+                // point that reads/realizes the dockable pane outside of this handler and
+                // ShowPaletteCommand — Refresh() only ever runs after the user has already opened
+                // the pane (ShowPaletteCommand or a click raised from inside the already-visible
+                // pane itself). So there's no separate synchronous callback that could race this
+                // Idling check the way SelectionChanged could there. Still, gate-and-return
+                // immediately here rather than falling through, for the same reason: don't leave a
+                // window where a caller below could observe/act on a "shown" pane the user never
+                // asked for.
+                if (!_userRequestedShow)
                 {
-                    try { pane.Hide(); }
-                    catch (System.Exception ex) { GmsLog.Error("TaggingPaletteModule.ForceInitialHide", ex); }
+                    if (pane.IsShown())
+                    {
+                        try { pane.Hide(); }
+                        catch (System.Exception ex) { GmsLog.Error("TaggingPaletteModule.ForceInitialHide", ex); }
+                    }
+                    return;
                 }
 
                 if (!pane.IsShown()) return;
