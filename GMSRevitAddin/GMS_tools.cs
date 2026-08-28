@@ -130,6 +130,13 @@ namespace GMSRevitAddin
             }
             catch (System.Exception __ex) { GMSRevitAddin.GmsLog.Error("GMS_tools.PaletteDocumentOpenedUnsubscribe", __ex); }
 
+            // Detail Item Palette: drop the persistent force-hide Idling subscription too.
+            try
+            {
+                application.Idling -= GMS.Tools.DetailItemPalette.PaletteModule.OnIdling;
+            }
+            catch (System.Exception __ex) { GMSRevitAddin.GmsLog.Error("GMS_tools.PaletteIdlingUnsubscribe", __ex); }
+
             // Tag Leader defaults: drop the persistent Idling subscription (DocumentChanged is
             // unsubscribed implicitly with the add-in unload; Idling is the one that keeps firing).
             try
@@ -198,10 +205,13 @@ namespace GMSRevitAddin
                 GMS.Tools.DetailItemPalette.PaletteModule.RegisterPane(application);
                 _paletteControlledApp = application;
                 application.Idling += OnFirstIdle_DetailItemPalette;
-                // Force-hide on every later document open too (ForceInitialHide's one-shot Idling
-                // call only covers the first document of the session) — same "always off unless the
-                // user turns it on" requirement, applied per project open like CycleWorkSets'
-                // WindowManager already does for its own window.
+                // Persistent force-hide: keeps checking every idle tick (not just the first) until
+                // the user explicitly opens the palette — see PaletteModule.OnIdling for why a
+                // one-shot check isn't reliable here.
+                application.Idling += GMS.Tools.DetailItemPalette.PaletteModule.OnIdling;
+                // Belt-and-suspenders: also force-hide right when a document opens, same "always
+                // off unless the user turns it on" requirement, applied per project open like
+                // CycleWorkSets' WindowManager already does for its own window.
                 application.ControlledApplication.DocumentOpened += GMS.Tools.DetailItemPalette.PaletteModule.OnDocumentOpened;
             }
             catch (System.Exception __ex) { GMSRevitAddin.GmsLog.Error("GMS_tools.RegisterPane", __ex); }

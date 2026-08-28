@@ -13,6 +13,9 @@ namespace GMS.Tools.DetailItemPalette
 
             PaletteModule.EnsureEvents(uiApp);
             PaletteModule.SubscribeSelectionChanged(uiApp);
+            // Stop the force-hide Idling/DocumentOpened handlers from closing the pane again —
+            // the user just asked for it explicitly.
+            PaletteModule.MarkUserRequestedShow();
 
             var pane = uiApp.GetDockablePane(PaletteModule.PaneId);
             pane.Show();

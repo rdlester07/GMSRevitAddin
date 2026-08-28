@@ -28,6 +28,16 @@ namespace GMS.Tools.DetailItemPalette
         private static bool _eventsInitialized;
         private static bool _selectionSubscribed;
 
+        // Set once the user explicitly opens the palette via ShowPaletteCommand this session.
+        // Every force-hide path below checks this first — once the user has asked for the pane, we
+        // stop fighting it, on this or any later document. See MarkUserRequestedShow.
+        private static bool _userRequestedShow;
+
+        /// <summary>Marks that the user explicitly asked to open the palette (via
+        /// <see cref="ShowPaletteCommand"/>). Stops <see cref="OnIdling"/>/<see cref="ForceInitialHide"/>
+        /// from closing the pane again for the rest of this Revit session.</summary>
+        public static void MarkUserRequestedShow() => _userRequestedShow = true;
+
         /// <summary>Creates and registers the dockable pane. Call from OnStartup.</summary>
         public static void RegisterPane(UIControlledApplication application)
         {
@@ -75,13 +85,13 @@ namespace GMS.Tools.DetailItemPalette
         /// Revit persists a dockable pane's shown/hidden state across sessions, keyed by
         /// AddInId + DockablePaneId — so if the palette was left open when Revit last closed,
         /// Revit re-opens it itself as soon as a document loads, before the user has asked for it
-        /// this session. Called once from the one-shot first-Idling handler so the palette always
-        /// starts off on a fresh session; the user opens it explicitly via the ribbon button
-        /// (ShowPaletteCommand), same as any other tool. (Same fix as
-        /// TaggingPaletteModule's force-initial-hide, applied here too.)
+        /// this session. Never hides it once the user has explicitly opened it this session (see
+        /// <see cref="_userRequestedShow"/>) — from then on it's a normal toggle-able pane. (Same
+        /// fix as TaggingPaletteModule's force-initial-hide, applied here too.)
         /// </summary>
         public static void ForceInitialHide(UIApplication uiApp)
         {
+            if (_userRequestedShow) return;
             try
             {
                 DockablePane pane;
@@ -95,16 +105,34 @@ namespace GMS.Tools.DetailItemPalette
         }
 
         /// <summary>
-        /// Hides the palette every time a document opens — same "always off unless the user turns
-        /// it on this document" requirement as <see cref="ForceInitialHide"/>, but covers opening a
-        /// second (or later) project in the same Revit session, which the one-shot first-Idling
-        /// call can't: that only runs once per session, before <c>_uiApp</c> is even set for the
-        /// very first document. Mirrors the same per-document hide idiom used by CycleWorkSets'
-        /// WindowManager (<c>OnDocumentOpened</c> there).
+        /// Persistent <c>UIControlledApplication.Idling</c> handler (NOT one-shot) that keeps
+        /// forcing the palette closed, on every idle tick, until the user explicitly opens it this
+        /// session. A single check at the very first Idling tick isn't reliable: Revit restores a
+        /// dockable pane's persisted "shown" state as part of bringing up the first document, and
+        /// that restore doesn't necessarily land before the add-in's own first-Idling callback
+        /// runs — so a one-shot check can fire too early, see the pane still hidden, and then have
+        /// Revit show it a moment later with nothing left watching. Checking every tick (cheap: one
+        /// dockable-pane lookup + IsShown()) catches it whenever it actually happens, and also
+        /// covers every later document opened in the same session — no separate DocumentOpened
+        /// hook needed.
+        /// </summary>
+        public static void OnIdling(object? sender, IdlingEventArgs e)
+        {
+            if (_userRequestedShow) return;
+            var uiApp = sender as UIApplication ?? _uiApp;
+            if (uiApp == null) return;
+            ForceInitialHide(uiApp);
+        }
+
+        /// <summary>
+        /// Hides the palette right when a document opens too — belt-and-suspenders alongside
+        /// <see cref="OnIdling"/>, which already covers this continuously, but reacts one tick
+        /// sooner. Mirrors the same per-document hide idiom used by CycleWorkSets' WindowManager
+        /// (<c>OnDocumentOpened</c> there).
         /// </summary>
         public static void OnDocumentOpened(object? sender, Autodesk.Revit.DB.Events.DocumentOpenedEventArgs e)
         {
-            if (_uiApp == null) return; // very first document — ForceInitialHide's Idling call handles it
+            if (_uiApp == null) return; // very first document — OnIdling covers it once uiApp is known
             ForceInitialHide(_uiApp);
         }
 
