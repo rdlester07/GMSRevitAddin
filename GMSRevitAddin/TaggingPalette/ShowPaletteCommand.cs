@@ -12,6 +12,9 @@ namespace GMS.Tools.TaggingPalette
             var uiApp = commandData.Application;
 
             TaggingPaletteModule.EnsureEvents(uiApp);
+            // Stop the force-hide Idling handler from closing the pane again — the user just
+            // asked for it explicitly.
+            TaggingPaletteModule.MarkUserRequestedShow();
 
             var pane = uiApp.GetDockablePane(TaggingPaletteModule.PaneId);
             pane.Show();
