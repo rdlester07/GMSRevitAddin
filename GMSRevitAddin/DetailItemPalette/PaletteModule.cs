@@ -158,6 +158,27 @@ namespace GMS.Tools.DetailItemPalette
                 try { pane = uiApp.GetDockablePane(PaneId); }
                 catch (Autodesk.Revit.Exceptions.ArgumentException) { return; }
 
+                // Never let a selection change surface the pane the user hasn't explicitly opened
+                // this session — checked directly here rather than trusting IsShown() alone.
+                // Confirmed live on R27: selecting a detail item made the pane visible even though
+                // nothing in this class calls Show() from here — the persistent OnIdling force-hide
+                // (a separate Idling subscription) can lose a race against this synchronous
+                // SelectionChanged callback landing between idle ticks, whatever actually flips
+                // IsShown() true (GetDockablePane realizing the pane's host on first access is the
+                // leading suspect). So: if the user hasn't asked for the pane and it's somehow shown
+                // anyway, force it back closed right here and bail — don't just skip the update and
+                // leave it open for the next idle tick to (maybe) catch.
+                if (!_userRequestedShow)
+                {
+                    if (pane.IsShown())
+                    {
+                        GmsLog.Info("  Pane unexpectedly shown without user request — forcing closed");
+                        try { pane.Hide(); }
+                        catch (Exception ex) { GmsLog.Error("PaletteModule.OnSelectionChanged.ForceHide", ex); }
+                    }
+                    return;
+                }
+
                 if (!pane.IsShown())
                 {
                     GmsLog.Info("  Pane not visible — skipping update");
