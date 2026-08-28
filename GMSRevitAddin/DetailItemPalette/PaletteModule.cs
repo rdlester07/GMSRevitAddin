@@ -71,6 +71,29 @@ namespace GMS.Tools.DetailItemPalette
             GmsLog.Info("PaletteModule: SelectionChanged subscribed");
         }
 
+        /// <summary>
+        /// Revit persists a dockable pane's shown/hidden state across sessions, keyed by
+        /// AddInId + DockablePaneId — so if the palette was left open when Revit last closed,
+        /// Revit re-opens it itself as soon as a document loads, before the user has asked for it
+        /// this session. Called once from the one-shot first-Idling handler so the palette always
+        /// starts off on a fresh session; the user opens it explicitly via the ribbon button
+        /// (ShowPaletteCommand), same as any other tool. (Same fix as
+        /// TaggingPaletteModule's force-initial-hide, applied here too.)
+        /// </summary>
+        public static void ForceInitialHide(UIApplication uiApp)
+        {
+            try
+            {
+                DockablePane pane;
+                try { pane = uiApp.GetDockablePane(PaneId); }
+                catch (Autodesk.Revit.Exceptions.ArgumentException) { return; }
+
+                if (pane.IsShown())
+                    pane.Hide();
+            }
+            catch (Exception ex) { GmsLog.Error("PaletteModule.ForceInitialHide", ex); }
+        }
+
         public static void UnsubscribeSelectionChanged(UIApplication uiApp)
         {
             if (!_selectionSubscribed) return;

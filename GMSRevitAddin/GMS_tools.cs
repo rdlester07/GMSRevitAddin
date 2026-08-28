@@ -65,6 +65,11 @@ namespace GMSRevitAddin
                     if (GMSRevitAddin.GmsUi.RevitMainWindowHandle == IntPtr.Zero)
                         GMSRevitAddin.GmsUi.RevitMainWindowHandle = uiApp.MainWindowHandle;
                     GMS.Tools.DetailItemPalette.PaletteModule.EnsureEvents(uiApp);
+                    // Revit auto-reopens the pane from persisted session state if it was left
+                    // open last time — force it closed before wiring selection so a selection
+                    // change never surfaces a pane the user hasn't asked for this session (see
+                    // ForceInitialHide; same fix as TaggingPaletteModule's).
+                    GMS.Tools.DetailItemPalette.PaletteModule.ForceInitialHide(uiApp);
                     GMS.Tools.DetailItemPalette.PaletteModule.SubscribeSelectionChanged(uiApp);
                 }
             }
