@@ -94,6 +94,20 @@ namespace GMS.Tools.DetailItemPalette
             catch (Exception ex) { GmsLog.Error("PaletteModule.ForceInitialHide", ex); }
         }
 
+        /// <summary>
+        /// Hides the palette every time a document opens — same "always off unless the user turns
+        /// it on this document" requirement as <see cref="ForceInitialHide"/>, but covers opening a
+        /// second (or later) project in the same Revit session, which the one-shot first-Idling
+        /// call can't: that only runs once per session, before <c>_uiApp</c> is even set for the
+        /// very first document. Mirrors the same per-document hide idiom used by CycleWorkSets'
+        /// WindowManager (<c>OnDocumentOpened</c> there).
+        /// </summary>
+        public static void OnDocumentOpened(object? sender, Autodesk.Revit.DB.Events.DocumentOpenedEventArgs e)
+        {
+            if (_uiApp == null) return; // very first document — ForceInitialHide's Idling call handles it
+            ForceInitialHide(_uiApp);
+        }
+
         public static void UnsubscribeSelectionChanged(UIApplication uiApp)
         {
             if (!_selectionSubscribed) return;

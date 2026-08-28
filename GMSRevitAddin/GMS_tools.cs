@@ -123,6 +123,13 @@ namespace GMSRevitAddin
             }
             catch (System.Exception __ex) { GMSRevitAddin.GmsLog.Error("GMS_tools.PaletteUnsubscribe", __ex); }
 
+            // Detail Item Palette: drop the per-document force-hide subscription too.
+            try
+            {
+                application.ControlledApplication.DocumentOpened -= GMS.Tools.DetailItemPalette.PaletteModule.OnDocumentOpened;
+            }
+            catch (System.Exception __ex) { GMSRevitAddin.GmsLog.Error("GMS_tools.PaletteDocumentOpenedUnsubscribe", __ex); }
+
             // Tag Leader defaults: drop the persistent Idling subscription (DocumentChanged is
             // unsubscribed implicitly with the add-in unload; Idling is the one that keeps firing).
             try
@@ -191,6 +198,11 @@ namespace GMSRevitAddin
                 GMS.Tools.DetailItemPalette.PaletteModule.RegisterPane(application);
                 _paletteControlledApp = application;
                 application.Idling += OnFirstIdle_DetailItemPalette;
+                // Force-hide on every later document open too (ForceInitialHide's one-shot Idling
+                // call only covers the first document of the session) — same "always off unless the
+                // user turns it on" requirement, applied per project open like CycleWorkSets'
+                // WindowManager already does for its own window.
+                application.ControlledApplication.DocumentOpened += GMS.Tools.DetailItemPalette.PaletteModule.OnDocumentOpened;
             }
             catch (System.Exception __ex) { GMSRevitAddin.GmsLog.Error("GMS_tools.RegisterPane", __ex); }
 
