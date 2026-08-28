@@ -49,54 +49,9 @@ dotnet build "GMSRevitAddin\GMSRevitAddin.csproj" -c "Release R24"
   [`GmsVersion.Number`](GMSRevitAddin/GmsVersion.cs). Version-specific runtime paths
   (`GmsPaths.GmsRevitRoot`, `GmsLog`'s log folder, keyboard-shortcut/Addins folders) derive from
   it — **do not re-introduce a hard-coded "2025"** in paths; use `GmsVersion.Number`.
-- **To add a future Revit version (e.g. 2028):** (1) add `Debug R28;Release R28` to
-  `<Configurations>`; (2) add a `<PropertyGroup Condition="$(Configuration.Contains('R28'))">`
-  setting `<RevitVersion>2028</RevitVersion>`; (3) if that Revit ships on a new .NET runtime, add a
-  second `<PropertyGroup Condition="$(Configuration.Contains('R28'))">` block **after** the shared
-  `<PropertyGroup>` (after the `<PlatformTarget>x64</PlatformTarget>` block) that overrides
-  `<TargetFramework>` — placing it after the shared block is required so it wins at restore time;
-  (4) confirm `Nice3point.Revit.Api.RevitAPI 2028.*` exists on NuGet; (5) add the four solution
-  configs in [`GMS Revit Addin.sln`](GMS%20Revit%20Addin.sln) (or let VS regenerate them).
-  Everything else flows from `$(RevitVersion)`. **Important:** if a new TFM is introduced, the
-  new version must be built via `.csproj` directly (not `.sln`) — see the build note above.
-  Also check whether Autodesk has changed the all-users manifest folder again (the 2027 change
-  is already handled by the `$(RevitVersion) >= 2027` condition in `DeployAddin`; only act if
-  a future version moves it somewhere else).
-
-### Revit 2024 / net48 (the one .NET Framework version — extra care)
-
-Revit 2025 was the first version on .NET Core; **Revit 2024 runs on .NET Framework 4.8**. The R24
-config (`<TargetFramework>net48</TargetFramework>` + `<LangVersion>latest</LangVersion>`) therefore
-needs several net48-only workarounds that the .NET Core versions don't. All are scoped in
-[`GMSRevitAddin.csproj`](GMSRevitAddin/GMSRevitAddin.csproj) by `Condition="'$(TargetFramework)' == 'net48'"`
-(or `$(Configuration.Contains('R24'))`), so they don't touch R25/R26/R27. **A future .NET Framework
-Revit version (e.g. an R23) would reuse this same recipe.**
-
-- **Framework references, not NuGet packages.** `System.Data.Odbc`, `System.Data.DataSetExtensions`,
-  and `Microsoft.CSharp` live in the framework GAC on net48 — they're added as `<Reference Include=…>`
-  while the NuGet `<PackageReference>`s are conditioned `!= net48`. Because `System.Data.Odbc` is part
-  of `System.Data.dll` on Framework, **no `runtimes\` folder is produced and `FlattenOdbcWindowsRuntime`
-  is a harmless no-op on net48** (the in-process ODBC-stub trap simply doesn't apply).
-- **`Microsoft.VisualBasic` must be referenced explicitly** — `Microsoft.VisualBasic.ApplicationServices`
-  is implicit on .NET Core but not auto-referenced under net48 (used in `UpdateOrigins`/`ManualUpdateOrigins`/`BySetForm`).
-- **WinForms `.resx` resources need two settings**, or the build/run breaks:
-  - `<GenerateResourceUsePreserializedResources>true</GenerateResourceUsePreserializedResources>` +
-    a `System.Resources.Extensions` `<PackageReference>` — without it the SDK resource generator fails
-    with MSB3822/MSB3823 on the binary (image) resources.
-  - `<EmbeddedResourceUseDependentUponConvention>true</EmbeddedResourceUseDependentUponConvention>` —
-    net8/net10 name embedded resources `<namespace>.<type>.resources` (what
-    `ComponentResourceManager(typeof(Form))` looks up), but net48 defaults to
-    `GMSRevitAddin.<filename>.resources`, so every form throws *"Could not find any resources … `<Form>.<Form>.resources` was correctly embedded"* at runtime. Forcing the convention makes net48 match net8.
-    (Form namespaces == class name, e.g. `SettingsForm.SettingsForm`, per the one-namespace-per-file idiom.)
-- **Runtime assembly resolution** ([`GMS_tools.cs`](GMSRevitAddin/GMS_tools.cs), guarded `#if REVIT2024`).
-  The preserialized resources hard-depend on `System.Resources.Extensions`, deployed beside the DLL —
-  but Revit loads the add-in in-process and the net48 CLR probes **Revit's install folder (appbase)**,
-  not the add-in folder, with strict version binding (it requests 4.0.0.0; the shipped copy is 8.0.0.0).
-  So it fails with *"Could not load file or assembly 'System.Resources.Extensions, Version=4.0.0.0…'"*.
-  `OnStartup` registers `AppDomain.CurrentDomain.AssemblyResolve += ResolveFromAddinFolder` **first**,
-  which `Assembly.LoadFrom`s the sibling `<simpleName>.dll` from the add-in's own directory (bypassing
-  version binding). This is the **same in-process-resolution gap as the ODBC note below**, and the
-  handler covers any future sibling dependency. This is the only `#if REVIT*` block in the codebase.
+- Adding a future Revit version (e.g. 2028) to this build matrix, and the Revit 2024 / net48
+  (.NET Framework 4.8) build workarounds, are covered in the `gms-revit-version-support` skill
+  (`.claude/skills/gms-revit-version-support/SKILL.md`) — load it when doing either.
 
 ## Deployment (important, and non-obvious)
 
@@ -127,64 +82,10 @@ Revit version (e.g. an R23) would reuse this same recipe.**
 
 ## Live debugging
 
-Yes — the project is wired for it. Because Revit loads the add-in in-process, "live debugging"
-means getting Revit to load straight from a `bin\Debug ...\` folder and then attaching a .NET
-debugger to the `Revit.exe` process, rather than anything that runs the add-in standalone.
-
-- **`GenerateDebugAddinManifest`** (in [`GMSRevitAddin.csproj`](GMSRevitAddin/GMSRevitAddin.csproj),
-  Debug configs only, **and only when `-p:DeployDebugManifest=true` is passed** — see below) writes a
-  **second, separate** add-in manifest — its own `AddInId`/`Name`, from
-  [`GMSRevitAddin.Debug.addin.template`](GMSRevitAddin/GMSRevitAddin.Debug.addin.template) — into
-  Revit's **per-user** Addins folder (`%AppData%\Autodesk\Revit\Addins\<ver>\`). Because it's a
-  distinct `AddInId` from the real add-in's, it coexists safely with a Release deploy already sitting
-  in the machine-wide folder — Revit loads both as independent add-ins. And because it's the
-  per-user folder, **no elevation is needed for any version, including 2027+** (the elevation
-  requirement is specific to the all-users folder `DeployAddin` writes to). The generated manifest's
-  `<Assembly>` points straight at **this build's own `$(TargetPath)`** in `bin\Debug <cfg>\<tfm>\` —
-  not a copy — so the PDB Visual Studio loads always matches what Revit has open.
-- **⚠️ The debug manifest is opt-in, not automatic.** An ordinary `dotnet build ... -c "Debug R##"`
-  (e.g. a quick compile check) does **not** deploy the debug manifest — only a build that also passes
-  `-p:DeployDebugManifest=true` does. This exists so routine Debug builds don't silently leave a
-  live-debug manifest sitting in the per-user Addins folder. The manifest only needs to exist **once**
-  per Revit version (its `<Assembly>` path doesn't change between builds of the same config), so this
-  isn't needed on every build — only before your first live-debug session for a given version:
-  - **VS Code** already handles this — the `build-debug-r##` tasks in
-    [`.vscode/tasks.json`](.vscode/tasks.json) (used only as the `preLaunchTask` for the "Launch Revit
-    20##" configs below) pass the flag, so **F5 there just works**, same as before this flag existed.
-  - **Visual Studio** F5 (via `Properties/launchSettings.json`) builds through VS's own build system,
-    which has no equivalent way to pass an extra flag. Before your first F5 session for a given Revit
-    version, run one manual build with the flag, e.g.
-    `dotnet build "GMS Revit Addin.sln" -c "Debug R25" -p:DeployDebugManifest=true` (R24/R27: build the
-    `.csproj` directly instead, same as any other build — see "Build & run" above). After that, F5
-    keeps working normally until the DLL path changes (e.g. a different Revit version).
-- **To debug:** build the `Debug R##` config for the Revit version you want, then either
-  (a) launch that Revit version normally and use **Debug > Attach to Process > `Revit.exe`** (pick
-  the **.NET** code type for R25/R26/R27, or **.NET Framework** for R24) — simplest, but misses
-  anything in `OnStartup` since it already ran before you attach; or
-  (b) use the matching profile in [`Properties/launchSettings.json`](GMSRevitAddin/Properties/launchSettings.json)
-  (`"Revit 2024"`/`"2025"`/`"2026"`/`"2027"`, each an `Executable` launch pointing at that version's
-  `Revit.exe`) so **F5 starts Revit with the debugger already attached** — this one hits
-  `OnStartup` breakpoints too.
-- **VS Code equivalent:** [`.vscode/launch.json`](.vscode/launch.json) mirrors the same two modes —
-  a generic `"Attach to Revit"` config (`processId": "${command:pickProcess}"`) and one `"Launch
-  Revit 20##"` config per version, each with a `preLaunchTask` (in
-  [`.vscode/tasks.json`](.vscode/tasks.json)) that builds the matching `Debug R##` config first so
-  the DLL is fresh before Revit starts. **⚠️ R24 (net48) is best-effort only from VS Code** — the
-  C# extension's `coreclr` debug adapter targets .NET Core/5+, and VS Code has no first-party .NET
-  Framework debugger equivalent to full Visual Studio's; use Visual Studio's Attach to Process for
-  R24 instead.
-- **⚠️ Keep the launch profile and the solution configuration in sync yourself** — picking the
-  "Revit 2026" launch profile while "Debug R25" is the active solution configuration doesn't error,
-  it just means Revit 2026 finds no debug manifest in its own Addins folder (safe no-op: the GMS
-  ribbon tab simply won't appear) rather than loading a mismatched build.
-- **⚠️ The same file-lock rule as `DeployAddin` now applies to Debug builds too**, once you've
-  actually opened Revit against a Debug output: Revit has that exact `bin\Debug ...\GMSRevitAddin.dll`
-  open in-process, so rebuilding that same config while Revit is still running fails on a locked
-  file, same as a Release build. Attach-to-process debugging doesn't rebuild anything, so this only
-  bites when you edit code and need a fresh build — close Revit first, same as Release.
-- `FlattenOdbcWindowsRuntime` already runs for Debug builds too (see its comment in the csproj) —
-  ODBC-backed commands (`UpdateSchedules.cs`, `ExportParts.cs`) work under live debugging with no
-  extra setup.
+Yes — the project is wired for it (attaching a .NET debugger to `Revit.exe` against a `bin\Debug
+...\` build). Full setup — the per-user debug manifest, `DeployDebugManifest`, and the VS / VS Code
+launch profiles — is in the `gms-live-debug-setup` skill (`.claude/skills/gms-live-debug-setup/SKILL.md`)
+— load it when setting up or troubleshooting live debugging.
 
 ## Architecture
 
@@ -322,160 +223,18 @@ debugger to the `Revit.exe` process, rather than anything that runs the add-in s
 
 ### Ribbon icon theming (light/dark)
 
-The GMS ribbon icons have two variants: the original dark glyphs (`Resources/<name>.png`, used in
-Revit's light theme) and **monochrome light-gray `Resources/<name>_dark.png`** variants (used in dark
-theme so they read on the dark ribbon). [`GMS_tools.cs`](GMSRevitAddin/GMS_tools.cs) routes every button
-image through the **`Icon("<name>.png")`** helper, which swaps in the `_dark` variant when
-`UIThemeManager.CurrentTheme == Dark`. **When adding a ribbon button:** add both the base PNG and a
-`_dark` variant to `Resources/` (+ a `<Resource Include>` line each in the csproj) and set the image via
-`Icon("file.png")`, not a raw `new BitmapImage(new Uri(...))`. The `_dark` files are generated from the
-originals by recoloring every opaque pixel to light gray (`#D6D6D6`) while preserving alpha. **Caveat:**
-the ribbon is built once in `OnStartup`, so the icon set is fixed at Revit startup — switching Revit's
-theme mid-session needs a Revit restart to re-tint the GMS icons (forms, by contrast, re-read the theme
-each time they open).
-
-The newer GMS icons are **flat single-color glyphs drawn programmatically** (System.Drawing in a
-PowerShell script) at 32px in the icon red **`#B91D08`**, replacing the legacy glossy / ICO-data-with-a-
-`.png`-extension art. Redrawn this way: `purgeFamily` (trash can w/ lid), `reset` (circular reset arrow
-around a paint-chip swatch), `calendar` (drop-shadow removed). **When you edit or redraw a base icon you
-must regenerate its `<name>_dark.png` from the new base** (the `#D6D6D6` recipe above). Render internal
-detail (trash-can ribs, the swatch's hanging hole, etc.) as **transparent gaps, not a darker shade**, so
-it survives the monochrome dark recolor. (Full repeatable recipe — preview-by-upscaling, etc. — is in the
-`gms-icon-design-workflow` memory.)
-
-The **Help** button (Settings panel) and its `KeyboardShortcuts.xml` registration were removed
-(2026-06-30); the `HelpMenu.Help` command class still exists (commented-out block in `GMS_tools.cs`).
+GMS ribbon icons ship in light/dark pairs (`Resources/<name>.png` + `Resources/<name>_dark.png`),
+routed through `GMS_tools.cs`'s `Icon("<name>.png")` helper. Full theming and icon-drawing details
+are in the `gms-ribbon-icon-workflow` skill (`.claude/skills/gms-ribbon-icon-workflow/SKILL.md`) —
+load it when adding or editing a ribbon icon.
 
 ### Notable feature modules
 
-- **`DetailItemPalette/`** — a **dockable pane** (WPF `IDockablePaneProvider`) migrated from the
-  retired "GMS Tools" add-in. Selecting a detail item/group lists the sheets it appears on; clicking a
-  sheet navigates + selects. Dockable panes **must be registered in `OnStartup`**
-  (`PaletteModule.RegisterPane`), but `UIApplication` isn't available then, so `GMS_tools.OnStartup`
-  grabs it on the first `Idling` event (one-shot `OnFirstIdle_DetailItemPalette`) to wire the
-  `ExternalEvent` + `SelectionChanged` listener. Keeps its original `GMS.Tools.DetailItemPalette`
-  namespace; logs via `GmsLog`.
-- **`TaggingPalette/`** — a second **dockable pane** (`GMS.Tools.TaggingPalette` namespace, button
-  `"ShowTaggingPalette"` placed right after the Detail Item Palette button, same panel), registered
-  unconditionally in `OnStartup` (`TaggingPaletteModule.RegisterPane`) since — unlike the Detail Item
-  Palette — it needs no `UIApplication`-dependent listener wired up later; its `ExternalEvent` is
-  created lazily on first `ShowPaletteCommand.Execute`. Three tabs list family types (grouped by
-  family name) as clickable buttons: **Detail Items** (`OST_DetailComponentTags`), **Generic
-  Models** (`OST_GenericModelTags`), and **Unit/Pieces** (`OST_CurtainWallPanelTags` + the
-  `"GAIT - Piece Tag"` family, matched by name, merged together). Clicking a type button sets it as
-  the document's default type for its category (`Document.SetDefaultFamilyTypeId`) then posts the
-  matching native command — decided **three-way**, not two, in `TaggingPaletteModule.ResolveCommand`:
-  `Category.IsTagCategory` → `PostableCommand.TagByCategory`; `CategoryType.Annotation` (a plain
-  Generic Annotation family like `"GAIT - Piece Tag"`) → `PostableCommand.Symbol`; anything else →
-  `PostableCommand.PlaceAComponent` — because `PlaceAComponent` only places elements "in the building
-  model" and silently no-ops for a 2D annotation-only family. A persistent `OnIdling` handler (not
-  `ViewActivated`, which misses "Activate View" inside a sheet — a known Revit API gap) re-evaluates
-  button enablement whenever the active view changes: a Drafting View has no model geometry, so
-  types tagging a real model category (`RequiresModelView`) grey out there. Also ships
-  `TagLeaderDefaults.cs`, which defaults every newly-placed Detail Item Tags/Generic Model Tags tag's
-  Leader Type to Free End (`IndependentTag.LeaderEndCondition`), document-wide — not scoped to this
-  palette, applies no matter how the tag was placed. There's no public API to pre-seed the
-  interactive Tag tool's Options Bar leader default, so this caches new tag ids on `DocumentChanged`
-  (can't modify the document from inside that event) and corrects them on the next `Idling` tick in
-  its own transaction — the same cache-then-fix-on-idle idiom as `DuplicateViewOptions.RevitStartup`.
-  Custom icons `tagpalette_32/16(.png/_dark.png)` follow the flat-glyph recipe in "Ribbon icon
-  theming" below.
-- **`StockLengthOptimizer/`** — cutting-stock optimizer (a native C#/WinForms port of an external
-  `index.html` tool) reachable from the **end of the "GMS Tools" ribbon panel**
-  (`"StockLengthOptimizer.LaunchForm"`). Reads the **`(DO NOT OPEN) Framing Stock Lengths`** schedule
-  (`CutListReader`, same `GetTableData`/`GetCellText` idiom as `ExportParts`, with **keyword-based
-  column auto-detection** off the header row), groups by Finish+Die, runs First-Fit-Decreasing
-  bin-packing (`StockOptimizer`, pure logic, no Revit refs), and shows a theme-aware WinForms results
-  form + a 4-sheet `.xlsx` export. Two things to know: (1) the command is **`TransactionMode.Manual`,
-  not `ReadOnly`** — reading schedule cells can force a schedule **regen** (a doc change) that ReadOnly
-  blocks with *"Changes are disabled for the active document"*; (2) the `.xlsx` is written by a
-  **self-contained OOXML writer** (`XlsxWriter`, via `System.IO.Compression.ZipArchive`) — **no
-  spreadsheet NuGet** (keeps with the minimal-dependency rule; on net48/R24 the two
-  `System.IO.Compression*` framework assemblies are added as `<Reference>`s). The form
-  (`StockOptimizerForm`) follows Revit's light/dark theme via `UIThemeManager.CurrentTheme` — note it
-  must **not** `using Autodesk.Revit.UI;` (its `TextBox`/`ComboBox` collide with WinForms;
-  fully-qualify `UIThemeManager`/`UITheme` instead). Both result grids use
-  `AutoSizeColumnsMode.AllCells` (autofit to content) with `TextCol`/`NumCol` setting `MinimumWidth`
-  rather than a fixed `Width`, so short numeric columns stay narrow while long text isn't clipped.
-  - **Two-stock-length optimization (per die, automatic).** `RunRecommend` doesn't just pick the
-    single least-drop stock length anymore — it also runs a **heuristic 2-length search**
-    (`OptimizeDieMulti` + `OpenBestFitBin` in `StockOptimizer.cs`): anchor on the best single length,
-    then search for the best complementary second length (O(N), not an exhaustive O(N²) pair search).
-    `Bin` and `PatternInfo` now carry their own `StockIn`, so a die's patterns can legitimately belong
-    to either of 2 purchased lengths — short pieces route to the shorter length, long pieces to the
-    longer one, via `OpenBestFitBin` picking whichever allowed length wastes the least per new bin.
-    A 2-length result is only adopted over the single-length one if it clears **both** an absolute
-    floor (`MinTwoLengthSavingsIn`, 24") **and** a relative floor (`MinTwoLengthSavingsFraction`, 3%
-    of the die's required length) — the relative floor exists because a fixed absolute-only threshold
-    let a near-uniform cut list trigger a pointless second length for a ~2% gain (caught via a
-    standalone sanity run of `StockOptimizer.cs` outside Revit — the file has no Revit references, so
-    it can be exercised in a throwaway console project for quick algorithm checks). A die that
-    previously errored "exceeds search range" can now be rescued if 2 lengths together cover it.
-    UI reflects this: the die grid's Stock column shows `"18'-0" + 26'-0""` for 2-length dies with a
-    `★ 2 lengths — saves …` badge, the pattern grid gained a **Stock** column (each pattern's own
-    length — this also fixed a latent bug where per-pattern drop was computed against the die's
-    primary length instead of that pattern's own), and the Excel Summary sheet emits **one row per
-    purchased length** (not one row per die) with a "2 Lengths" note column.
-- **[`UpdateFramingWeights.cs`](GMSRevitAddin/UpdateFramingWeights.cs)** — `"UpdateFramingWeights.UpdateWeights"`
-  (GMS Tools panel, "Update Weights" button). Iterates every **generic-model family type**
-  (`OfCategory(OST_GenericModel).WhereElementIsElementType()`) that has the **`Framing - Weight / Ft`**
-  parameter, reads its **`Framing - Die Number`**, and from the GMS Extrusion Access DB
-  (`GmsPaths.ExtrusionDatabase`, table `Extrusion Data`, matched on `Die Number`) writes `Weight` →
-  `Framing - Weight / Ft` (storage-type aware) and `<Alloy>-<Temper>` → `Framing - Alloy / Temper`.
-  Reuses the **`UpdateSchedules` ODBC recipe**: copy DB to `%TEMP%\GMS`, ODBC `Driver={Microsoft Access
-  Driver (*.mdb, *.accdb)};Dbq=…`, then `cn.Close(); Thread.Sleep(500); OdbcConnection.ReleaseObjectPool();
-  GC.Collect();`. **`TransactionMode.Manual`** (DB reads happen before the transaction; one transaction
-  wraps all writes; queries are **parameterized** by die and cached). Unmatched/blank dies are skipped
-  and reported via `GmsUi`. Shows the shared modeless `ProgressForm` across the read + write loops. (Note
-  the family/schedule param is `Framing - Weight / Ft` — distinct from the `Schedule - Weight / Ft` that
-  `UpdateSchedules` writes.)
-- **[`CreateUnitSheet.cs`](GMSRevitAddin/CreateUnitSheet.cs)** — `"CreateUnitSheet.CreateUnitSheet"`
-  ("New Unit Sheet" button). Prompts via `CreateUnitSheetForm`, then either creates a blank unit sheet
-  (`createNewUnit`) or duplicates an existing unit (`duplicateUnit` → a fresh `ViewDrafting` +
-  `ElementTransformUtils.CopyElements`, a "No Title" viewport at the source's position, then retags
-  every `GAIT - Piece Tag` to the new unit). **It no longer generates a per-unit schedule** (changed
-  2026-07-31): the model holds **one shared schedule named `"(Do Not Open) Unit Pieces"`** and both
-  paths just place another `ScheduleSheetInstance` of it — the old `UNIT_<n> PIECES` note-block
-  construction (fields/sort/Origin filter/column styling/`Schedule - Unit Drawing` template) is gone.
-  Resolve it with **`CreateUnitSheet.FindUnitPiecesSchedule(doc)`** (matches `UnitScheduleName`
-  case-insensitively). ⚠️ **Because one schedule is shared across every unit sheet, it only shows
-  per-unit rows if its definition has "filter by sheet" enabled** — the old per-unit Origin filter is
-  what used to do that. Both **pre-flight checks run before any transaction** so an abort leaves no
-  half-built sheet: `Execute` verifies the schedule exists (`CUS7`), and `duplicateUnit` resolves the
-  source sheet (`CUS8`) **and** its placed schedule instance (`CUS9`) *before* calling `createNewUnit`
-  — hence the source-sheet lookup sits at the top of the method, not after. The duplicate path places
-  the schedule at the source instance's `Point`; the from-scratch path uses the fixed
-  `DefaultSchedulePlacement`. `AddUnitSchedule.cs` (`AddUnitSchedule.AddSchedule`), the other per-unit
-  schedule builder, is **retired** — commented out in place (it was already unwired: no ribbon string
-  referenced it). Its form, `CreateUnitSheetForm`, has a **type-to-filter** unit combo box
-  (`DropDownStyle.DropDown` + custom substring filtering on `TextChanged`); see the WinForms gotchas
-  below. **Redesigned 2026-08** (the add-in's pilot for the current UI pass): whether to duplicate is
-  now an explicit `CheckBox` (`checkBoxDuplicate`), not inferred from the combo box being blank —
-  unchecking it clears any typed/selected value so a stale choice can't survive. New-unit-number
-  validation is centralized in `TryValidateNewUnitNumber` (still just "contains `U-`, no spaces/braces,
-  not already taken" — deliberately not tightened to a stricter format regex, since other unit-number
-  matching elsewhere in the codebase only ever checks "contains `U-`" too) and runs live as the user
-  types, showing an inline hint/error label (`DarkTheme.CurrentErrorText` when invalid) instead of a
-  blocking popup, with `buttonOK` (marked primary — see `DarkTheme.MarkPrimary`) disabled until valid.
-
-### WinForms gotchas worth knowing (learned the hard way)
-
-Filtering a `ComboBox` as the user types (`CreateUnitSheetForm.comboBox1_TextChanged`) needs four
-non-obvious guards — all four were real bugs, so keep them if you touch that code:
-- **`DropDownList` can't be typed into at all**, and it silently ignores `AutoCompleteMode`/
-  `AutoCompleteSource` — those settings look active but do nothing. Editable filtering needs
-  `ComboBoxStyle.DropDown`, and the native `AutoComplete*` must stay **off** or its suggestion popup
-  competes with the filtered dropdown.
-- **Re-entrancy:** rewriting `Items`/`Text` re-raises `TextChanged` — guard with a `suppressFilter` flag.
-- **Caret reset:** repopulating `Items` *and* setting `DroppedDown` both reset the caret to 0, which
-  makes typing look reversed. Capture `SelectionStart` first, restore it last.
-- **`DroppedDown = true` hides the mouse cursor** (Windows' "hide pointer while typing"), leaving the
-  filtered list unclickable. Call `System.Windows.Forms.Cursor.Show()` right after — `ShowCursor` is
-  ref-counted, so keep it inside the `!DroppedDown` guard so it fires once per open, not per keystroke.
-- Picking a list item also raises `TextChanged`; re-filtering there reopens the dropdown the user just
-  closed. Flag it in `SelectionChangeCommitted` and skip that one change.
-- Validate with the **`Validating` event + `e.Cancel`**, not `Leave`, and set
-  `CausesValidation = false` on the Cancel button so a bad value can still be abandoned.
+Detailed per-module notes for `DetailItemPalette/`, `TaggingPalette/`, `StockLengthOptimizer/`,
+`UpdateFramingWeights.cs`, and `CreateUnitSheet.cs` (plus the `CreateUnitSheetForm` ComboBox
+type-ahead filtering gotchas) live in the `gms-feature-modules-reference` skill
+(`.claude/skills/gms-feature-modules-reference/SKILL.md`) — load it when working on any of those
+files.
 
 ### External dependencies & data
 
