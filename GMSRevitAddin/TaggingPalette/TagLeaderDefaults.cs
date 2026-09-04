@@ -40,9 +40,22 @@ namespace GMS.Tools.TaggingPalette
         {
             try
             {
+                // DocumentChanged fires on every doc-modifying transaction, most of which add
+                // nothing (a parameter edit, our own "Set default tag/component type" transaction,
+                // etc.) — GetAddedElementIds() is empty far more often than not. The
+                // FilteredElementCollector(doc, ICollection<ElementId>) constructor throws
+                // ArgumentException on an empty collection ("contents were not valid for
+                // iteration") rather than just yielding zero results, so skip it entirely in that
+                // case. Previously this threw (and logged a full stack trace) on nearly every
+                // DocumentChanged in a session — over 500 times in one day's log — with the catch
+                // below masking it as a silent no-op each time, so it went unnoticed until the log
+                // was actually inspected.
+                var addedIds = e.GetAddedElementIds();
+                if (addedIds.Count == 0) return;
+
                 var doc = e.GetDocument();
 
-                var addedTagIds = new FilteredElementCollector(doc, e.GetAddedElementIds())
+                var addedTagIds = new FilteredElementCollector(doc, addedIds)
                     .OfClass(typeof(IndependentTag))
                     .Cast<IndependentTag>()
                     .Where(tag => tag.Category != null && TargetCategories.Contains((BuiltInCategory)tag.Category.Id.Value))
