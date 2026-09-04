@@ -11,21 +11,29 @@ using Autodesk.Revit.UI;
 namespace UpdateFramingWeights
 {
     /// <summary>
-    /// Scans every generic-model family TYPE in the active document. For any type that has the
-    /// "Framing - Weight / Ft" parameter, it reads the type's "Framing - Die Number", looks the die
+    /// Scans every generic-model AND detail-item family TYPE in the active document. For any type
+    /// that has that category's weight parameter, it determines the type's die number, looks the die
     /// up in the GMS Extrusion Access DB ("Extrusion Data" table, matched on "Die Number"), and writes
-    /// the DB "Weight" into "Framing - Weight / Ft" and "Alloy"-"Temper" into "Framing - Alloy / Temper".
-    /// Type parameters; all generic-model types; unmatched/blank dies are skipped and reported.
-    /// Wired in GMS_tools.cs as "UpdateFramingWeights.UpdateWeights".
+    /// the DB "Weight" and "Alloy"-"Temper" into that category's weight/material parameters.
+    /// Generic-model types use "Framing - Weight / Ft" / "Framing - Alloy / Temper" and carry the die
+    /// directly in their own "Framing - Die Number" type parameter. Detail-item types use the
+    /// differently-named "Component - Weight / Ft" / "Component - Material" and have no die parameter
+    /// of their own, so their die is parsed from the family name instead (see
+    /// <see cref="ParseDieFromFamilyName"/> — the same "Extrusion-1234"/GMD-prefix convention
+    /// UpdateSchedules.cs's legacy extrusion-data path uses). Type parameters; unmatched/unresolvable
+    /// dies are skipped and reported. Wired in GMS_tools.cs as "UpdateFramingWeights.UpdateWeights".
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class UpdateWeights : IExternalCommand
     {
-        // Revit family TYPE parameters (exact spellings per the team).
-        private const string WeightParam = "Framing - Weight / Ft";
-        private const string AlloyTemperParam = "Framing - Alloy / Temper";
-        private const string DieParam = "Framing - Die Number";
+        // Revit family TYPE parameters (exact spellings per the team). Generic-model and detail-item
+        // types use different parameter names for the same weight/material data.
+        private const string GenericWeightParam = "Framing - Weight / Ft";
+        private const string GenericMaterialParam = "Framing - Alloy / Temper";
+        private const string DieParam = "Framing - Die Number";   // generic-model types only
+        private const string DetailWeightParam = "Component - Weight / Ft";
+        private const string DetailMaterialParam = "Component - Material";
 
         // Access DB schema.
         private const string Table = "Extrusion Data";
@@ -47,8 +55,10 @@ namespace UpdateFramingWeights
             {
                 Document doc = commandData.Application.ActiveUIDocument.Document;
 
-                // 1. Collect generic-model TYPES that carry the weight parameter, paired with their die.
-                var targets = new List<(FamilySymbol Symbol, string Die)>();
+                // 1. Collect generic-model TYPES that carry the weight parameter, paired with their die
+                //    (read directly from the type's own "Framing - Die Number" parameter) and which
+                //    weight/material parameter names to write into.
+                var targets = new List<(FamilySymbol Symbol, string Die, string WeightParam, string MaterialParam)>();
                 var blankDie = new List<string>();   // family type names with the param but no die
 
                 var symbols = new FilteredElementCollector(doc)
@@ -59,7 +69,7 @@ namespace UpdateFramingWeights
 
                 foreach (FamilySymbol fs in symbols)
                 {
-                    if (fs.LookupParameter(WeightParam) == null)
+                    if (fs.LookupParameter(GenericWeightParam) == null)
                         continue;   // not a framing extrusion family — leave untouched
 
                     Parameter dp = fs.LookupParameter(DieParam);
@@ -70,12 +80,39 @@ namespace UpdateFramingWeights
                         blankDie.Add(fs.FamilyName + " : " + fs.Name);
                         continue;
                     }
-                    targets.Add((fs, die));
+                    targets.Add((fs, die, GenericWeightParam, GenericMaterialParam));
                 }
 
-                if (targets.Count == 0 && blankDie.Count == 0)
+                // 1b. Collect detail-item TYPES that carry the weight parameter. Detail Items have no
+                //     "Framing - Die Number" parameter of their own, so the die is parsed from the
+                //     family name instead (same convention UpdateSchedules.cs's legacy extrusion-data
+                //     path uses for this category), and they use their own differently-named
+                //     weight/material parameters.
+                var unparsedName = new List<string>();   // family type names the die couldn't be parsed from
+
+                var detailSymbols = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_DetailComponents)
+                    .WhereElementIsElementType()
+                    .OfClass(typeof(FamilySymbol))
+                    .Cast<FamilySymbol>();
+
+                foreach (FamilySymbol fs in detailSymbols)
                 {
-                    GMSRevitAddin.GmsUi.Show("No generic-model family types with a \"" + WeightParam + "\" parameter were found.", "Update Framing Weights");
+                    if (fs.LookupParameter(DetailWeightParam) == null)
+                        continue;   // not a framing extrusion family — leave untouched
+
+                    string die = ParseDieFromFamilyName(fs.FamilyName);
+                    if (die == null)
+                    {
+                        unparsedName.Add(fs.FamilyName + " : " + fs.Name);
+                        continue;
+                    }
+                    targets.Add((fs, die, DetailWeightParam, DetailMaterialParam));
+                }
+
+                if (targets.Count == 0 && blankDie.Count == 0 && unparsedName.Count == 0)
+                {
+                    GMSRevitAddin.GmsUi.Show("No generic-model family types with a \"" + GenericWeightParam + "\" parameter, or detail-item family types with a \"" + DetailWeightParam + "\" parameter, were found.", "Update Framing Weights");
                     return Result.Succeeded;
                 }
 
@@ -105,7 +142,7 @@ namespace UpdateFramingWeights
                     using (Transaction t = new Transaction(doc, "Update Framing Weights"))
                     {
                         t.Start();
-                        foreach (var (fs, die) in targets)
+                        foreach (var (fs, die, weightParam, materialParam) in targets)
                         {
                             progress.IncrementWithText("Updating " + fs.FamilyName + " : " + fs.Name);
 
@@ -115,11 +152,11 @@ namespace UpdateFramingWeights
                                 continue;
                             }
 
-                            bool changed = SetWeight(fs, row.Weight.Value);
+                            bool changed = SetWeight(fs, weightParam, row.Weight.Value);
 
                             string at = JoinAlloyTemper(row.Alloy, row.Temper);
-                            if (!string.IsNullOrEmpty(at) && fs.LookupParameter(AlloyTemperParam) != null)
-                                changed |= GMSRevitAddin.RevitParameterHelper.TrySetString(fs, AlloyTemperParam, at);
+                            if (!string.IsNullOrEmpty(at) && fs.LookupParameter(materialParam) != null)
+                                changed |= GMSRevitAddin.RevitParameterHelper.TrySetString(fs, materialParam, at);
 
                             if (changed) updated++;
                         }
@@ -143,9 +180,14 @@ namespace UpdateFramingWeights
                 if (blankDie.Count > 0)
                 {
                     sb.AppendLine();
-                    sb.AppendLine("Skipped " + blankDie.Count + " family type" + (blankDie.Count == 1 ? "" : "s") + " with a blank \"" + DieParam + "\".");
+                    sb.AppendLine("Skipped " + blankDie.Count + " generic-model family type" + (blankDie.Count == 1 ? "" : "s") + " with a blank \"" + DieParam + "\".");
                 }
-                GMSRevitAddin.GmsLog.Info("UpdateFramingWeights: updated=" + updated + ", unmatched=" + unmatched.Count + ", blankDie=" + blankDie.Count);
+                if (unparsedName.Count > 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("Skipped " + unparsedName.Count + " detail-item family type" + (unparsedName.Count == 1 ? "" : "s") + " whose die number couldn't be parsed from the family name.");
+                }
+                GMSRevitAddin.GmsLog.Info("UpdateFramingWeights: updated=" + updated + ", unmatched=" + unmatched.Count + ", blankDie=" + blankDie.Count + ", unparsedName=" + unparsedName.Count);
                 GMSRevitAddin.GmsUi.Show(sb.ToString(), "Update Framing Weights");
 
                 return Result.Succeeded;
@@ -214,6 +256,28 @@ namespace UpdateFramingWeights
             return result;
         }
 
+        /// <summary>
+        /// Derives a die number from a Detail Item family name, mirroring the legacy parsing
+        /// UpdateSchedules.cs uses for this same category: split on '-' and take the second segment as
+        /// the die (e.g. "Extrusion-1234" -> "1234"), folding a "GMD" segment into the die together
+        /// with the segment after it (e.g. "Extrusion-GMD-5678" -> "GMD-5678"). Returns null if the
+        /// name doesn't have enough '-'-separated segments to parse.
+        /// </summary>
+        private static string ParseDieFromFamilyName(string familyName)
+        {
+            if (string.IsNullOrWhiteSpace(familyName)) return null;
+            string[] parts = familyName.Split('-');
+            if (parts.Length < 2) return null;
+
+            string die = parts[1].Trim();
+            if (die.Equals("GMD", StringComparison.OrdinalIgnoreCase))
+            {
+                if (parts.Length < 3) return null;
+                die = "GMD-" + parts[2].Trim();
+            }
+            return string.IsNullOrWhiteSpace(die) ? null : die;
+        }
+
         private static double? ParseWeight(object value)
         {
             if (value == null) return null;
@@ -231,10 +295,10 @@ namespace UpdateFramingWeights
             return alloy != "" ? alloy : temper;
         }
 
-        /// <summary>Sets the weight parameter respecting its storage type. Returns true if set.</summary>
-        private static bool SetWeight(FamilySymbol fs, double weight)
+        /// <summary>Sets the named weight parameter respecting its storage type. Returns true if set.</summary>
+        private static bool SetWeight(FamilySymbol fs, string weightParam, double weight)
         {
-            Parameter p = fs.LookupParameter(WeightParam);
+            Parameter p = fs.LookupParameter(weightParam);
             if (p == null || p.IsReadOnly) return false;
             try
             {

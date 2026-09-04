@@ -75,17 +75,29 @@ description: Reference notes for specific GMSRevitAddin feature modules — Deta
     purchased length** (not one row per die) with a "2 Lengths" note column.
 - **[`UpdateFramingWeights.cs`](../../../GMSRevitAddin/UpdateFramingWeights.cs)** — `"UpdateFramingWeights.UpdateWeights"`
   (GMS Tools panel, "Update Weights" button). Iterates every **generic-model family type**
-  (`OfCategory(OST_GenericModel).WhereElementIsElementType()`) that has the **`Framing - Weight / Ft`**
-  parameter, reads its **`Framing - Die Number`**, and from the GMS Extrusion Access DB
-  (`GmsPaths.ExtrusionDatabase`, table `Extrusion Data`, matched on `Die Number`) writes `Weight` →
-  `Framing - Weight / Ft` (storage-type aware) and `<Alloy>-<Temper>` → `Framing - Alloy / Temper`.
+  (`OfCategory(OST_GenericModel).WhereElementIsElementType()`) **and every detail-item family type**
+  (`OfCategory(OST_DetailComponents).WhereElementIsElementType()`), resolves each type's die number, and
+  from the GMS Extrusion Access DB (`GmsPaths.ExtrusionDatabase`, table `Extrusion Data`, matched on
+  `Die Number`) writes `Weight` (storage-type aware) and `<Alloy>-<Temper>` into that category's own
+  weight/material parameters — **the two categories use different parameter names for the same data**:
+  generic-model types have the gating **`Framing - Weight / Ft`** parameter and write
+  `Framing - Alloy / Temper`; detail-item types have the gating **`Component - Weight / Ft`** parameter
+  and write **`Component - Material`** (a type only participates if it carries its category's gating
+  weight param — otherwise left untouched). **Die resolution also differs by category:** generic-model
+  types read it straight from their own **`Framing - Die Number`** type parameter; detail-item types have
+  no such parameter, so `ParseDieFromFamilyName` derives it from the family name instead — split on `-`,
+  second segment is the die (`"Extrusion-1234"` → `"1234"`), with a `"GMD"` segment folded into the next
+  one (`"Extrusion-GMD-5678"` → `"GMD-5678"`) — the same convention `UpdateSchedules.cs`'s legacy
+  extrusion-data path uses for detail items (though that *third* path writes yet another pair,
+  `Schedule - Weight / Ft`/`Schedule - Material` — three differently-named param pairs now exist across
+  the codebase for the same conceptual weight/material data; don't assume they're interchangeable).
   Reuses the **`UpdateSchedules` ODBC recipe**: copy DB to `%TEMP%\GMS`, ODBC `Driver={Microsoft Access
   Driver (*.mdb, *.accdb)};Dbq=…`, then `cn.Close(); Thread.Sleep(500); OdbcConnection.ReleaseObjectPool();
   GC.Collect();`. **`TransactionMode.Manual`** (DB reads happen before the transaction; one transaction
-  wraps all writes; queries are **parameterized** by die and cached). Unmatched/blank dies are skipped
-  and reported via `GmsUi`. Shows the shared modeless `ProgressForm` across the read + write loops. (Note
-  the family/schedule param is `Framing - Weight / Ft` — distinct from the `Schedule - Weight / Ft` that
-  `UpdateSchedules` writes.)
+  wraps all writes; queries are **parameterized** by die and cached across both categories). Unmatched
+  dies, generic-model types with a blank `Framing - Die Number`, and detail-item types whose name doesn't
+  parse are each skipped and reported separately via `GmsUi`. Shows the shared modeless `ProgressForm`
+  across the read + write loops.
 - **[`CreateUnitSheet.cs`](../../../GMSRevitAddin/CreateUnitSheet.cs)** — `"CreateUnitSheet.CreateUnitSheet"`
   ("New Unit Sheet" button). Prompts via `CreateUnitSheetForm`, then either creates a blank unit sheet
   (`createNewUnit`) or duplicates an existing unit (`duplicateUnit` → a fresh `ViewDrafting` +
