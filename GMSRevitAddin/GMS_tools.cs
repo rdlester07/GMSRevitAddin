@@ -46,6 +46,11 @@ namespace GMSRevitAddin
         private static UIControlledApplication _paletteControlledApp = null;
         private static UIApplication _paletteUiApp = null;
 
+        // For "Edit Annotation"'s selection-driven auto-trigger (EditDetailItemTagModule): same
+        // first-Idling-then-unsubscribe-at-shutdown idiom as the Detail Item Palette's above.
+        private static UIControlledApplication _editDetailItemTagControlledApp = null;
+        private static UIApplication _editDetailItemTagUiApp = null;
+
         /// <summary>The single running instance of the add-in application, captured in <see cref="AddRibbonPanel"/>.</summary>
         public static GMS_tools Instance
         {
@@ -78,6 +83,27 @@ namespace GMSRevitAddin
             {
                 if (_paletteControlledApp != null)
                     _paletteControlledApp.Idling -= OnFirstIdle_DetailItemPalette;
+            }
+        }
+
+        // One-shot Idling handler: UIApplication is unavailable at OnStartup, so subscribe the
+        // "Edit Annotation" auto-trigger-on-selection listener here, then unsubscribe so Idling
+        // stops firing. See EditDetailItemTag.cs's EditDetailItemTagModule.
+        private void OnFirstIdle_EditDetailItemTag(object sender, IdlingEventArgs e)
+        {
+            try
+            {
+                if (sender is UIApplication uiApp)
+                {
+                    _editDetailItemTagUiApp = uiApp;
+                    EditDetailItemTag.EditDetailItemTagModule.SubscribeSelectionChanged(uiApp);
+                }
+            }
+            catch (System.Exception __ex) { GMSRevitAddin.GmsLog.Error("OnFirstIdle_EditDetailItemTag", __ex); }
+            finally
+            {
+                if (_editDetailItemTagControlledApp != null)
+                    _editDetailItemTagControlledApp.Idling -= OnFirstIdle_EditDetailItemTag;
             }
         }
 
@@ -122,6 +148,14 @@ namespace GMSRevitAddin
                     GMS.Tools.DetailItemPalette.PaletteModule.UnsubscribeSelectionChanged(_paletteUiApp);
             }
             catch (System.Exception __ex) { GMSRevitAddin.GmsLog.Error("GMS_tools.PaletteUnsubscribe", __ex); }
+
+            // "Edit Annotation": drop the selection-driven auto-trigger's SelectionChanged subscription.
+            try
+            {
+                if (_editDetailItemTagUiApp != null)
+                    EditDetailItemTag.EditDetailItemTagModule.UnsubscribeSelectionChanged(_editDetailItemTagUiApp);
+            }
+            catch (System.Exception __ex) { GMSRevitAddin.GmsLog.Error("GMS_tools.EditDetailItemTagUnsubscribe", __ex); }
 
             // Detail Item Palette: drop the per-document force-hide subscription too.
             try
@@ -215,6 +249,20 @@ namespace GMSRevitAddin
                 application.ControlledApplication.DocumentOpened += GMS.Tools.DetailItemPalette.PaletteModule.OnDocumentOpened;
             }
             catch (System.Exception __ex) { GMSRevitAddin.GmsLog.Error("GMS_tools.RegisterPane", __ex); }
+
+            // "Edit Annotation": the selection-driven auto-trigger (auto-run the edit dialog when
+            // the active selection becomes exactly one Detail Item Tag) is disabled for now — a
+            // plain click-select was opening the dialog unexpectedly. The subscription below is
+            // intentionally left out; the ribbon button/pick tool (EditDetailItemTagCommand.Execute)
+            // still works independently and is unaffected. See EditDetailItemTag.cs
+            // (EditDetailItemTagModule) for the auto-trigger code, kept in place to re-enable later.
+            //
+            // try
+            // {
+            //     _editDetailItemTagControlledApp = application;
+            //     application.Idling += OnFirstIdle_EditDetailItemTag;
+            // }
+            // catch (System.Exception __ex) { GMSRevitAddin.GmsLog.Error("GMS_tools.EditDetailItemTagSubscribe", __ex); }
 
             // Tagging Palette: dockable panes MUST be registered during OnStartup. Unlike the Detail
             // Item Palette it has no persistent event subscription to wire up later (no
@@ -482,6 +530,18 @@ namespace GMSRevitAddin
             pbTaggingPalette.ToolTip = "Show / focus the Tagging Palette (Detail Item Tags, Unit / Piece Tags, Generic Model Tags).";
             pbTaggingPalette.LargeImage = Icon("tagpalette_32.png");
             pbTaggingPalette.Image = Icon("tagpalette_16.png");
+
+            // "Edit Annotation" button. Runs a pick tool restricted to Detail Item Tag elements,
+            // resolves the tag to the Detail Item it's tagging, and opens a modal dialog to edit
+            // *that* element's parameters (not the tag family's own parameters). (A true
+            // double-click trigger via Revit's Double-Click Options was tried first, but that
+            // dialog has no per-category hook for family/tag instances — only one global "Family"
+            // entry covering every loadable-family category — so it would also swallow "Edit
+            // Family" double-click everywhere else in the model; a pick tool avoids that.) See
+            // GMSRevitAddin/EditDetailItemTag.cs.
+            PushButtonData editAnnotationData = new PushButtonData("EditDetailItemTag", "Edit" + System.Environment.NewLine + "Annotation", thisAssemblyPath, "EditDetailItemTag.EditDetailItemTagCommand");
+            PushButton pbEditAnnotation = GMSDetailItems.AddItem(editAnnotationData) as PushButton;
+            pbEditAnnotation.ToolTip = "Pick a Detail Item Tag to edit the parameters of the Detail Item it tags.";
 
             // "Cycle Worksets" button.
             PushButtonData cycleWorksetsData = new PushButtonData("Cycle Worksets", "Cycle" + System.Environment.NewLine + "Worksets", thisAssemblyPath, "CycleWorksets.LaunchForm");

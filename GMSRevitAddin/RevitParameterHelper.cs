@@ -55,5 +55,53 @@ namespace GMSRevitAddin
                 return false;
             }
         }
+
+        /// <summary>
+        /// Set a parameter by name, regardless of storage type (String/Integer/Double) — unlike
+        /// <see cref="TrySetString"/>, which only handles String storage. Text (String storage)
+        /// parameters are set directly via <see cref="Parameter.Set(string)"/> (the same call
+        /// <see cref="TrySetString"/> uses — proven correct across ~120 existing call sites); every
+        /// other storage type goes through <see cref="Parameter.SetValueString(string)"/>, which
+        /// parses <paramref name="value"/> as the document's UI-formatted text for that parameter
+        /// (length/number/etc.). <c>SetValueString</c> is NOT used for String storage — it is meant
+        /// for unit-aware numeric-ish text, and routing plain text parameters through it turned out
+        /// to silently fail to write anything back (caught by the try/catch below, logged, but never
+        /// visibly surfaced) — hence the branch. Returns true on success; logs (rather than throwing
+        /// or silently swallowing) when the parameter is missing, read-only, or the write fails.
+        /// </summary>
+        public static bool TrySetValueString(Element element, string parameterName, string value)
+        {
+            if (element == null)
+            {
+                GmsLog.Warn("TrySetValueString: null element for parameter '" + parameterName + "'");
+                return false;
+            }
+
+            Parameter p = element.LookupParameter(parameterName);
+            if (p == null)
+            {
+                GmsLog.Warn("TrySetValueString: parameter '" + parameterName + "' not found on element " + element.Id);
+                return false;
+            }
+            if (p.IsReadOnly)
+            {
+                GmsLog.Warn("TrySetValueString: parameter '" + parameterName + "' is read-only on element " + element.Id);
+                return false;
+            }
+
+            try
+            {
+                if (p.StorageType == StorageType.String)
+                    p.Set(value ?? string.Empty);
+                else
+                    p.SetValueString(value ?? string.Empty);
+                return true;
+            }
+            catch (System.Exception ex)
+            {
+                GmsLog.Error("TrySetValueString: failed to set '" + parameterName + "' on element " + element.Id, ex);
+                return false;
+            }
+        }
     }
 }
