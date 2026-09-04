@@ -56,21 +56,59 @@ namespace GMS.Tools.TaggingPalette
             var doc = app.ActiveUIDocument?.Document;
             if (doc == null || PendingTypeId == null || PendingCategoryId == null || PendingCommand == null) return;
 
+            // ElementId is a reference type (not a struct), so PendingCategoryId/PendingTypeId's "?"
+            // is just a nullable-reference annotation, not Nullable<T> — no .Value unwrap here
+            // (that would instead resolve to ElementId.Value, its long id property, a completely
+            // different thing). The null-check above already narrows both to non-null.
+            var categoryId = PendingCategoryId;
+            var typeId = PendingTypeId;
+            var postable = PendingCommand.Value;
+
+            // The Escape that ends any still-running placement command is sent by
+            // TaggingPalettePane.TypeButton_Click, NOT here — see the comment there. Revit does not
+            // run a raised ExternalEvent while an interactive command is active, so by the time this
+            // method runs that command has already ended (from that Escape, or because the user
+            // ended it themselves); sending another Escape here would only clear their selection.
+            //
+            // The switch itself is still deferred to TaggingPaletteModule.OnIdling rather than
+            // posted directly from here. Posting a command while the previous one is still winding
+            // down is silently ignored — the running tool keeps the type it started with, since
+            // SetDefaultFamilyTypeId only affects the *next* fresh start of the tool — and
+            // CanPostCommand is no help in spotting that state: a placement command's repeat loop
+            // isn't modal, so it keeps reporting true throughout. Waiting for an Idling tick is the
+            // reliable signal instead: it guarantees the Escape has been pumped through Revit's
+            // message loop first.
+            GmsLog.Info($"TaggingPalette: queueing switch to {postable} (type {typeId}).");
+            TaggingPaletteModule.PendingSwitchCategoryId = categoryId;
+            TaggingPaletteModule.PendingSwitchTypeId = typeId;
+            TaggingPaletteModule.PendingSwitchCommand = postable;
+        }
+
+        /// <summary>Sets <paramref name="typeId"/> as <paramref name="categoryId"/>'s default family
+        /// type and posts <paramref name="commandId"/> — the actual "switch to this type and start
+        /// placing it" work, shared by the immediate path above and
+        /// <see cref="TaggingPaletteModule.OnIdling"/>'s deferred retry.</summary>
+        internal static void ApplyTypeAndPost(UIApplication app, Document doc, ElementId categoryId, ElementId typeId, RevitCommandId commandId)
+        {
             // SetDefaultFamilyTypeId writes document state (the "last used type" per category),
             // so it needs a transaction even though nothing else about the model changes.
             using (var t = new Transaction(doc, "Set default tag/component type"))
             {
                 t.Start();
-                doc.SetDefaultFamilyTypeId(PendingCategoryId, PendingTypeId);
+                doc.SetDefaultFamilyTypeId(categoryId, typeId);
                 t.Commit();
             }
 
-            var postable = PendingCommand.Value;
-            var commandId = RevitCommandId.LookupPostableCommandId(postable);
-            if (app.CanPostCommand(commandId))
-                app.PostCommand(commandId);
-            else
-                GmsLog.Info($"TaggingPaletteEventHandler: {postable} is not postable right now (modal state?)");
+            app.PostCommand(commandId);
+
+            // The click that got us here left Win32 keyboard focus on the pane's WPF button, not
+            // Revit's main window. PostCommand doesn't change that, so the *first* Escape the user
+            // presses while placing tags is consumed by the docked pane instead of reaching Revit's
+            // command loop — the tool only exits on a second Escape. Reclaiming focus for Revit's
+            // main window right away (same helper FormClosed handlers use to recover activation
+            // after a modeless dialog, see GmsUi.ActivateRevit) means the very next Escape goes
+            // straight to the placement command, so a single press exits it as expected.
+            GmsUi.ActivateRevit();
         }
 
         public string GetName() => "GMS Tagging Palette";

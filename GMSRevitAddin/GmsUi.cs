@@ -47,6 +47,9 @@ namespace GMSRevitAddin
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool SetForegroundWindow(IntPtr hWnd);
 
+        [DllImport("user32.dll")]
+        private static extern IntPtr SetFocus(IntPtr hWnd);
+
         /// <summary>
         /// Revit's main window handle, captured from <c>UIControlledApplication.MainWindowHandle</c>
         /// in <c>GMS_tools.OnStartup</c>. This is the Revit-API-correct source; see
@@ -129,6 +132,55 @@ namespace GMSRevitAddin
             catch (Exception ex)
             {
                 GmsLog.Error("GmsUi.ActivateRevit", ex);
+            }
+        }
+
+        [DllImport("user32.dll")]
+        private static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+
+        private const byte VK_ESCAPE = 0x1B;
+        private const uint KEYEVENTF_KEYUP = 0x0002;
+
+        /// <summary>
+        /// Simulates one physical Escape keypress into Revit, ending whatever interactive command is
+        /// currently running. The Revit API has no "cancel the active command" call, so the only way
+        /// an add-in can stop e.g. Tag by Category's "click to tag another element" repeat loop is the
+        /// same way a user would.
+        ///
+        /// Both halves of the setup matter. **Focus:** the caller is typically a WPF control in a
+        /// docked pane, which still holds Win32 keyboard focus after the click that got us here — an
+        /// Escape delivered there is swallowed by the pane instead of reaching Revit's command loop.
+        /// (That is also why a user has to press Escape *twice* to get out of a command started from
+        /// such a pane: the first press is eaten moving focus off it.) <see cref="ActivateRevit"/>
+        /// re-activates Revit's frame and <c>SetFocus</c> then moves keyboard focus onto it, so the
+        /// keystroke lands where a real one would. <c>SetFocus</c> only works on a window owned by the
+        /// calling thread's message queue, which holds here — callers run on Revit's UI thread, which
+        /// owns the frame.
+        ///
+        /// **Context:** this is pure Win32 and touches no Revit API, so — unlike almost everything
+        /// else the palette does — it is legal from a plain WPF click handler, outside any Revit API
+        /// context. That is exactly where <c>TaggingPalettePane.TypeButton_Click</c> calls it, and it
+        /// has to be called there rather than from the ExternalEvent it raises: Revit will not run a
+        /// raised <c>ExternalEvent</c> while an interactive command is active, so an Escape sent from
+        /// inside that handler could never cancel the command that was blocking the handler from
+        /// running in the first place.
+        /// </summary>
+        public static void SendEscape()
+        {
+            try
+            {
+                ActivateRevit();
+
+                IntPtr h = OwnerHandle;
+                if (h != IntPtr.Zero && IsWindow(h))
+                    SetFocus(h);
+
+                keybd_event(VK_ESCAPE, 0, 0, UIntPtr.Zero);
+                keybd_event(VK_ESCAPE, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            }
+            catch (Exception ex)
+            {
+                GmsLog.Error("GmsUi.SendEscape", ex);
             }
         }
 

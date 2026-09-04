@@ -91,6 +91,17 @@ namespace GMS.Tools.TaggingPalette
         {
             if (sender is Button btn && btn.Tag is TagTypeButton info && _handler != null && _event != null)
             {
+                // End whatever placement command is currently running BEFORE raising the external
+                // event — this has to happen here, in the WPF click handler, not inside the event
+                // handler it raises. Revit does not run a raised ExternalEvent while an interactive
+                // command (Tag by Category's "click to tag another element" loop) is active; it
+                // queues it until that command ends. So an Escape sent from inside Execute() could
+                // never cancel the very command that was keeping Execute() from running — which is
+                // why clicking a second type used to do nothing at all until the user manually
+                // escaped out of the first one. SendEscape is pure Win32 and touches no Revit API,
+                // so it is legal from a plain UI callback like this one.
+                GMSRevitAddin.GmsUi.SendEscape();
+
                 _handler.Action = TaggingPaletteAction.ActivateType;
                 _handler.PendingTypeId = info.TypeId;
                 _handler.PendingCategoryId = info.CategoryId;

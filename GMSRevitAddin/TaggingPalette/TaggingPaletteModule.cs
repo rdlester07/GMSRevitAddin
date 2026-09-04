@@ -30,6 +30,19 @@ namespace GMS.Tools.TaggingPalette
         // MarkUserRequestedShow. (Same fix as DetailItemPalette.PaletteModule's.)
         private static bool _userRequestedShow;
 
+        // The type/category/command from the most recent palette click, waiting to be activated on
+        // an Idling tick — see TaggingPaletteEventHandler.ActivateType for why a switch is always
+        // deferred rather than posted straight from the click's ExternalEvent. The Escape ending any
+        // command still running was already sent, back in TaggingPalettePane.TypeButton_Click.
+        // Null when nothing is pending.
+        internal static ElementId? PendingSwitchCategoryId;
+        internal static ElementId? PendingSwitchTypeId;
+        internal static PostableCommand? PendingSwitchCommand;
+
+        // Guards the "not postable yet" log line below so it is written once per pending request
+        // rather than on every Idling tick (Idling fires constantly).
+        private static bool _pendingSwitchBlockedLogged;
+
         /// <summary>Marks that the user explicitly asked to open the palette (via
         /// <see cref="ShowPaletteCommand"/>). Stops <see cref="OnIdling"/> from closing the pane
         /// again for the rest of this Revit session.</summary>
@@ -152,6 +165,40 @@ namespace GMS.Tools.TaggingPalette
             try
             {
                 if (sender is not UIApplication uiApp) return;
+
+                // Finish a type switch queued by a palette click — see PendingSwitchCommand and
+                // TaggingPaletteEventHandler.ActivateType. The synthetic Escape that ended the
+                // previous command (sent back in TaggingPalettePane.TypeButton_Click) needs a pass
+                // through Revit's message loop before a new command can be posted over it, which is
+                // exactly what waiting for an Idling tick gives us.
+                // Checked first, ahead of the pane-visibility gating below, since none of that is a
+                // precondition for finishing a switch already in flight.
+                if (PendingSwitchCommand != null && PendingSwitchCategoryId != null && PendingSwitchTypeId != null)
+                {
+                    var pendingCommandId = RevitCommandId.LookupPostableCommandId(PendingSwitchCommand.Value);
+                    if (uiApp.CanPostCommand(pendingCommandId))
+                    {
+                        var pendingDoc = uiApp.ActiveUIDocument?.Document;
+                        if (pendingDoc != null)
+                        {
+                            // ElementId is a reference type, so no ".Value" unwrap here — see the
+                            // matching comment in TaggingPaletteEventHandler.ActivateType.
+                            TaggingPaletteEventHandler.ApplyTypeAndPost(
+                                uiApp, pendingDoc, PendingSwitchCategoryId, PendingSwitchTypeId, pendingCommandId);
+                            GmsLog.Info($"TaggingPalette: activated {PendingSwitchCommand.Value}.");
+                        }
+                        PendingSwitchCategoryId = null;
+                        PendingSwitchTypeId = null;
+                        PendingSwitchCommand = null;
+                        _pendingSwitchBlockedLogged = false;
+                    }
+                    else if (!_pendingSwitchBlockedLogged)
+                    {
+                        _pendingSwitchBlockedLogged = true;
+                        GmsLog.Info($"TaggingPalette: {PendingSwitchCommand.Value} not postable yet; " +
+                            "waiting for Revit to finish the active command.");
+                    }
+                }
 
                 DockablePane pane;
                 try { pane = uiApp.GetDockablePane(PaneId); }
